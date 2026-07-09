@@ -1,496 +1,632 @@
-# Astronomical Objects Community Forum — Specification
+# AstroForum — Specification
 
-## Overview
-
-A crowd-sourced forum where users discuss astronomical objects, identify
-unknown ones, and propose new catalogue entries or changes to existing ones.
-Trusted contributors earn expert status automatically. The catalogue grows
-through community effort with expert oversight.
+An astronomy discussion forum with a community-curated catalogue of
+celestial objects. Think of it as a regular forum where every category
+maps to an object type in the catalogue, and threads can propose changes
+to the catalogue itself.
 
 ---
 
-## 1. Users
+## 1. Forum
 
-### 1.1 Account creation
+### 1.1 Categories (sub-forums)
 
-Only admins can create accounts. The admin sets an initial password — for
-example a random one shown to the admin once, to share with the new user out
-of band. Every user changes their own password through the normal
-password-change feature at any time.
+Every thread lives in exactly one category. Categories are hierarchical
+and map directly to astronomical object types:
 
-### 1.2 Roles
+| Category slug       | Description                                                |
+|---------------------|------------------------------------------------------------|
+| `general`           | Anything not covered below                                 |
+| `stars`             | Stars, binary/multiple systems, variable stars             |
+| `nebulae-clusters`  | Emission/reflection/dark nebulae, open/globular clusters   |
+| `galaxies`          | Spiral, elliptical, irregular galaxies, quasars            |
+| `solar-system`      | Planets, moons, asteroids, comets, dwarf planets           |
+| `deep-sky`          | Other deep-sky objects not fitting the above               |
+| `identifications`   | "What is this?" — post images/descriptions of unknowns     |
+| `proposals`         | Suggest adding, editing, or removing catalogue entries     |
 
-Every user has a **role** (site management) and an **expertise** badge
-(knowledge level). The two axes are independent.
+Categories are stored in a `categories` table and rendered as the
+primary navigation. The listing on the index page shows each category
+with the count of recent threads inside it (standard forum index
+pattern).
 
-**Role:**
-- `admin` — manage users, grant verified status, write verification notes,
-  demote experts, close discussions, resolve identifications.
-- `member` — participate in discussions, submit identifications, propose
-  objects, suggest changes.
+When a thread is created in `stars`, `nebulae-clusters`, `galaxies`,
+`solar-system`, or `deep-sky`, the system automatically links the thread
+to the catalogue type matching that category. No dropdown picker needed.
 
-**Expertise:**
-- `normal` — base permissions only.
-- `expert` — can approve or reject proposals. Earned automatically through
-  contributions.
-- `verified` — same approval power as expert, distinct badge. Granted manually
-  by admin after private verification (e.g., confirming professional
-  credentials).
+New categories can be added by an admin; the association with an object
+type is optional — `general`, `identifications`, and `proposals` have
+no catalogue type backing.
 
-An admin carries an expertise badge like any other user; it is visible on
-their profile.
+### 1.2 Threads
 
-### 1.3 Verification notes
+Threads are the basic unit of discussion. A thread has:
 
-When granting verified status, an admin may attach a private note (e.g.,
-"confirmed astronomer — checked LinkedIn"). These notes are stored in a
-separate `user_verifications` table and are visible to admins only.
+- A title and body (body is plain text with reference syntax)
+- An author
+- A category (FK to `categories`)
+- A status: `open` or `closed`
+- A created-at timestamp
 
-### 1.4 Profile page
+Closing a thread locks it — no new replies. Admins and the thread
+author can close a thread. Any user can close their own thread by
+marking a reply as the solution (see §1.4).
+
+**Proposal threads** (category = `proposals`) carry extra state:
+- `proposal_type` — `add_entry`, `edit_field`, or `remove_entry`
+- `proposal_status` — `pending`, `approved`, or `rejected`
+
+**Identification threads** (category = `identifications`) carry:
+- `identified_entry_id` — FK to the catalogue entry identified (set
+  when solved)
+
+A thread's open/closed status is independent of its proposal status.
+A proposal can be closed (approved/rejected) while still being open
+for viewing.
+
+### 1.3 Replies
+
+Replies are a flat list under each thread, in chronological order.
+Each reply has:
+
+- An author
+- A body (plain text with reference syntax)
+- `is_solution` boolean — set when the OP or an admin marks this
+  reply as the correct answer (identification threads only)
+- A created-at timestamp
+
+Replies have no special proposal-data attachment UI. Instead, a user
+who wants to propose catalogue data just writes a normal reply with
+structured information. The proposal-system UI appears only at the
+thread level (see §1.5).
+
+### 1.4 Marking a solution (identification threads)
+
+In an identification thread, the original poster (or an admin) can
+mark any reply as the solution. This sets `is_solution = true` on
+that reply and closes the thread.
+
+If the identification points to an existing catalogue entry, the
+thread is linked to it via `identified_entry_id`. If it points to
+something new, a proposal thread is automatically created with a
+cross-reference back to the identification thread.
+
+The UI is a simple "Mark as solution" button on each reply, visible
+only to the thread author and admins. No dropdown, no object selector.
+If the solver wants to link to an existing entry, they write
+`@entry:Sirius` in their reply and the system picks it up when the
+solution is marked. If the reply mentions no known entry, the system
+offers to create a proposal thread.
+
+### 1.5 Proposals (catalogue changes)
+
+A thread in the `proposals` category suggests a change to the
+catalogue. Three types:
+
+- **add_entry** — propose a new object with all its fields
+- **edit_field** — propose changing a specific field on an existing
+  entry
+- **remove_entry** — propose soft-deleting an existing entry (with
+  reason)
+
+Any user can start a proposal thread. When creating the thread, the
+user chooses the proposal type and fills out a structured form
+alongside the thread body. This data is stored in typed tables
+(§3.4) linked to the thread.
+
+**Review process:**
+- A proposal is `pending` on creation
+- Expert, verified, and admin users see "Approve" and "Reject"
+  buttons at the top of the thread (not per-reply)
+- Approval applies the proposed data to the catalogue, writes the
+  change to the edit history, sets the thread to `approved`, and
+  recalculates contributor expertise scores
+- Rejection sets the thread to `rejected`; no catalogue changes
+- Moderators can leave a reply explaining their decision
+
+**For remove_entry:** only verified and admin users can approve a
+removal, since it is a destructive action. When approved, the
+entry's status is set to `deleted` (data is never actually removed).
+If the target was created by an edit, the field reverts to its
+previous value.
+
+### 1.6 Reference syntax
+
+Thread bodies and replies support mentions that are rendered as
+clickable links:
+
+| Syntax                | Links to                          |
+|-----------------------|-----------------------------------|
+| `@username`           | User profile                      |
+| `@entry:Sirius`       | Catalogue entry (by name or ID)   |
+| `@thread:42`          | Another thread                    |
+| `@reply:123`          | A specific reply in any thread    |
+
+All output is HTML-escaped. The reference parser runs after
+`htmlspecialchars()` to prevent injection through the syntax.
+
+### 1.7 Closed threads
+
+A closed thread is read-only. No new replies can be posted. Any user
+can see the close reason displayed at the bottom of the thread.
+
+---
+
+## 2. Users
+
+### 2.1 Accounts
+
+Only admins can create accounts. The admin sets an initial password
+(shown once, to share out of band). Every user changes their own
+password through the normal password-change feature.
+
+### 2.2 Roles
+
+| Role     | Permissions                                                                 |
+|----------|-----------------------------------------------------------------------------|
+| `admin`  | Create/manage users, grant verified badge, demote experts, close threads,   |
+|          | mark any solution, manage categories                                        |
+| `member` | Create threads, reply, propose catalogue changes, mark solution on own      |
+|          | identification threads                                                      |
+
+### 2.3 Expertise badges
+
+Independent of role, every user carries an expertise badge:
+
+| Badge     | How earned                              | Powers                           |
+|-----------|------------------------------------------|----------------------------------|
+| `normal`  | Default                                  | Base permissions only            |
+| `expert`  | Auto-promoted at net score ≥ 5           | Approve/reject proposals         |
+| `verified`| Manually granted by admin                | Approve/reject proposals,        |
+|           |                                          | approve `remove_entry` proposals |
+
+An admin carries an expertise badge like any other user; it is visible
+on their profile.
+
+### 2.4 Verification notes
+
+When granting verified status, an admin may attach a private note
+(e.g., "confirmed astronomer — checked LinkedIn"). These notes are
+stored in a `user_verifications` table, visible only to admins.
+
+### 2.5 Profile page
 
 Each user profile shows:
 - Username, role, and expertise badges
-- Contribution history (proposals submitted, IDs resolved, approved
-  contributions, contributions marked bad)
+- Contribution stats (threads started, solutions provided, proposals
+  submitted, approved proposals, proposals that led to removals)
 - Date joined
+- Link to change password (for the account owner)
 
----
+### 2.6 Auto-promotion (expert)
 
-## 2. Discussions
+Net score = approved proposals (counted per proposal-data row that was
+applied) − proposals that were later removed (counted per row in a
+remove_entry that targeted one of this user's contributions). When net
+score reaches 5, the user is promoted to `expert`. Recalculated
+whenever a proposal is approved, rejected, or applied as a removal.
 
-All user-generated content is organized as discussions of three types:
+### 2.7 Auto-demotion
 
-- **general** — an open conversation, optionally linked to an object
-- **identification** — a request to identify an unknown object
-- **proposal** — a suggested change to the catalogue
+If an expert's net score drops below 5 (due to a removal targeting
+their work), they are demoted to `normal`. They regain expert by
+contributing more.
 
-Every discussion is either `open` or `closed`. A proposal discussion also
-carries an approval state — `pending`, `approved`, or `rejected` — and a
-resolved identification links directly to the object it identified. Each
-discussion type uses its own set of columns, so a proposal's approval state
-and an identification's resolved object are tracked independently.
+Admins can also manually demote an expert. A manually demoted user
+cannot be re-auto-promoted until an admin clears the restriction.
 
-### 2.1 General discussions
+### 2.8 Permissions matrix
 
-Any user can start a general discussion thread, optionally linked to a
-catalogue object. Anyone can comment.
-
-### 2.2 Identification discussions
-
-A user posts an image or description of an unknown object and asks for
-identification. Other users comment with their best guess, optionally
-referencing a known catalogue object via `@obj:Sirius` or describing a
-potentially new object.
-
-**Resolution:**
-- The original poster (or an admin) accepts a comment as the correct answer.
-  When the answer matches an existing catalogue object, the discussion links to
-  that object through `identified_object_id`.
-- When the answer points to a brand-new object, a **proposal** for that object
-  is created with its `parent_discussion_id` set to this identification, and
-  the system prompts the accepted comment's author (or the OP) to fill out the
-  full object form as a `proposed_objects` row within the new proposal.
-  `identified_object_id` stays `NULL` on this identification until that
-  proposal is approved and the object exists, at which point the system sets
-  `identified_object_id` to the newly created object.
-- When no answer is found, the OP (or an admin) closes the discussion.
-
-Resolved identifications appear on the identified object's page.
-
-### 2.3 Proposal discussions
-
-A proposal discussion collects suggested catalogue changes as proposed-data
-rows linked to its comments. Three kinds of proposal exist:
-
-- **New object**: a full object record (name, type, coordinates, magnitude,
-  etc.).
-- **Edit**: a change to one or more fields on an existing object.
-- **Mark as bad**: a flag that a previously approved contribution is
-  incorrect, with a reason.
-
-Any user may post a comment and attach proposed data of any of these kinds;
-several participants can propose different data within the same discussion.
-Each proposed-data row sits in a typed table — `proposed_objects`,
-`proposed_edits`, or `proposed_marks` — keyed to the comment that introduced
-it and to the proposal discussion.
-
-A proposal starts in `pending` state. Expert, verified, and admin users can
-approve or reject any pending proposal, including their own.
-
-Approval selects one comment as the resolution. The proposed-data rows linked
-to that comment are applied to the catalogue: a `proposed_objects` row becomes
-a new object, `proposed_edits` rows update the target object's fields, and a
-`proposed_marks` row applies the correction. The discussion moves to
-`approved`, the chosen comment is marked `is_accepted`, and the change is
-written to the object's edit history. Because the discussion-level approval
-determines which proposed-data rows are applied, `proposed_objects`,
-`proposed_edits`, and `proposed_marks` do not carry their own status column.
-
-**Mark-as-bad reversal mechanics.** When a mark-as-bad proposal is approved,
-the effect depends on what is being reverted:
-- If the target was an **edit**, the affected field on the `objects` table
-  reverts to its `old_value`.
-- If the target was an **object creation**, the object's `status` is set to
-  `deleted`, hiding it from the public catalogue while preserving every audit
-  record.
-
-Any user can submit a mark-as-bad proposal, but only verified and admin users
-can approve one.
-
-When a proposal originates from an identification (because the ID discovered a
-new object), its `parent_discussion_id` points back to the identification
-discussion, so the object page shows the full chain.
-
-### 2.4 Comments
-
-Comments form a single flat list under each discussion. Each comment has an
-anchor link for direct referencing. A comment carries `is_accepted` to mark the
-discussion's chosen resolution — for an identification that is the accepted
-answer, and for a proposal that is the approved data.
-
-### 2.5 Reference syntax
-
-Discussion bodies and comments are rendered with clickable references:
-
-| Syntax | Links to |
-|---|---|
-| `@username` | User profile |
-| `@obj:Sirius` | Catalogue object (by name or catalog ID) |
-| `@discussion:42` | Discussion thread |
-| `@comment:123` | Specific comment |
-
-All output is HTML-escaped for safety. The reference parser runs after
-`htmlspecialchars()` on the raw text to prevent HTML injection through the
-reference syntax.
+| Action                             | normal | expert | verified | admin |
+|------------------------------------|--------|--------|----------|-------|
+| Create threads, reply              | ✓      | ✓      | ✓        | ✓     |
+| Propose catalogue change           | ✓      | ✓      | ✓        | ✓     |
+| Mark solution on own thread        | ✓      | ✓      | ✓        | ✓     |
+| Mark solution on any thread        | —      | —      | —        | ✓     |
+| Approve/reject proposals           | —      | ✓      | ✓        | ✓     |
+| Approve `remove_entry` proposals   | —      | —      | ✓        | ✓     |
+| Close any thread                   | —      | —      | —        | ✓     |
+| Manage users, demote, verify       | —      | —      | —        | ✓     |
+| Read/write verification notes      | —      | —      | —        | ✓     |
 
 ---
 
 ## 3. Catalogue
 
-### 3.1 Objects
+### 3.1 Entries
 
-The catalogue stores astronomical objects with fields for name, catalog ID,
-object type, right ascension, declination, magnitude, constellation, distance,
-discoverer, discovery year, notes, and a `status` indicating whether the object
-is `active` or `deleted`. Coordinates are stored as J2000 sexagesimal strings
-(e.g. `06:45:08.9`, `-16:42:58`), matching the astronomical convention used by
-sources such as SIMBAD and OpenNGC. `distance_ly` uses `DECIMAL(12,3)` which
-supports values up to 999 billion light-years — well past the observable
-universe's ~93 billion light-year diameter.
+The catalogue stores celestial objects (called "entries" in the schema
+for disambiguation). Each entry has:
 
-### 3.2 Object history
+| Column            | Type            | Description                              |
+|-------------------|-----------------|------------------------------------------|
+| name              | VARCHAR(255)    | Common name (e.g. "Sirius")              |
+| catalog_id        | VARCHAR(64)     | Standard catalogue ID (HR 2491, M31)     |
+| entry_type        | VARCHAR(64)     | star, galaxy, nebula, cluster, etc.      |
+| right_ascension   | VARCHAR(16)     | J2000 sexagesimal (06:45:08.9)           |
+| declination       | VARCHAR(16)     | J2000 sexagesimal (−16:42:58)            |
+| apparent_mag      | DECIMAL(6,3)    | Apparent magnitude                       |
+| constellation     | VARCHAR(16)     | 3-letter abbreviation (CMa, And, Ori)    |
+| distance_ly       | DECIMAL(12,3)   | Distance in light-years                  |
+| discovered_by     | VARCHAR(128)    | Discoverer name                          |
+| discovery_year    | SMALLINT UNSIGNED | Year of discovery                      |
+| notes             | TEXT            | Free-form notes                          |
+| status            | ENUM            | `active` or `deleted`                    |
 
-Every change to an object is recorded as a row in `object_edits`, which is the
-object's complete edit history. Each entry records the source proposal
-(`discussion_id`), the approved comment that supplied the data (`comment_id`),
-the reviewer who approved it (`reviewer_id`), and the change itself
-(`action`, `field`, `old_value`, `new_value`).
+Coordinates are stored as J2000 sexagesimal strings, matching the
+astronomical convention used by SIMBAD and OpenNGC. `distance_ly`
+uses `DECIMAL(12,3)`, supporting values up to 999 billion light-years.
 
-All actions use the same per-field row structure:
-- **`created`**: one row per populated field; `old_value` is `NULL`,
-  `new_value` is the initial value.
-- **`edited`**: one row per changed field; `old_value` is the previous value,
-  `new_value` is the proposed value.
-- **`marked_bad` (reverting an edit)**: the `objects` field reverts to its
-  prior value; `old_value` is the bad value, `new_value` is the reverted
-  correct value.
-- **`marked_bad` (reverting a creation)**: one row with `field` set to
-  `status`, `old_value` set to `active`, `new_value` set to `deleted`.
+### 3.2 Category → type mapping
 
-An object's page draws from `object_edits` to show:
-- The proposal that created it.
-- Every approved edit that changed it.
-- Every resolved identification linked to it (via `identified_object_id`).
-- Any contributions marked as incorrect and why.
+When a thread is created in a category that maps to an object type,
+all catalogue entries of that type are listed in a sidebar for easy
+referencing. The mapping is:
 
-### 3.3 Direct editing
+| Category slug    | entry_type value(s)                          |
+|------------------|----------------------------------------------|
+| `stars`          | star                                         |
+| `nebulae-clusters` | nebula, emission_nebula, reflection_nebula, planetary_nebula, open_cluster, globular_cluster |
+| `galaxies`       | galaxy, quasar                               |
+| `solar-system`   | planet, dwarf_planet, moon, asteroid, comet  |
+| `deep-sky`       | anything not matched above                   |
 
-Expert and above users can edit the catalogue immediately. They create a
-proposal discussion and approve it themselves, and the edit is written to
-`object_edits` like any other applied change.
+Entries with `status = 'deleted'` are excluded from listings but
+their data is preserved for audit.
 
----
+### 3.3 Edit history
 
-## 4. Moderation and Quality
+Every change to a catalogue entry is recorded row by row in
+`entry_edits`. Each row records:
 
-### 4.1 Permissions
+- The source proposal thread and reply
+- The reviewer who approved it
+- The action: `created`, `edited`, or `removed`
+- The field name, old value, and new value
 
-| Action | normal | expert | verified | admin |
-|---|---|---|---|---|
-| Comment, start discussions | ✓ | ✓ | ✓ | ✓ |
-| Propose object or change | ✓ | ✓ | ✓ | ✓ |
-| Submit identification | ✓ | ✓ | ✓ | ✓ |
-| Approve or reject proposals | — | ✓ | ✓ | ✓ |
-| Propose marking contribution as bad | ✓ | ✓ | ✓ | ✓ |
-| Approve mark-bad proposals | — | — | ✓ | ✓ |
-| Accept answer on own ID | ✓ | ✓ | ✓ | ✓ |
-| Accept answer on any ID | — | — | — | ✓ |
-| Close any discussion | — | — | — | ✓ |
-| Manage users, demote, verify | — | — | — | ✓ |
-| Read/write verification notes | — | — | — | ✓ |
+An entry's detail page shows:
+- The proposal thread that created it
+- Every approved edit that changed it
+- Every resolved identification linked to it
+- Any removals applied to it and why
 
-### 4.2 Auto-promotion
+### 3.4 Proposal-data tables
 
-A user's net score is the number of their proposed-data rows (in
-`proposed_objects`, `proposed_edits`, and `proposed_marks`) that have been
-applied via an approved comment, minus the number of their proposed-data rows
-that were later marked as bad. When it reaches 5, the user is promoted to
-expert. Promotion is recalculated whenever a proposal is approved, rejected,
-or marked bad.
+Three tables hold pending proposal data, keyed to the thread and
+optionally to a specific reply:
 
-### 4.3 Auto-demotion
+- **`proposed_entries`** — mirrors the `objects` table; holds the
+  full record for an `add_entry` proposal
+- **`proposed_field_edits`** — one row per field being changed in
+  an `edit_field` proposal; stores object_id, field, old_value,
+  new_value
+- **`proposed_removals`** — one row per target entry in a
+  `remove_entry` proposal; stores object_id and reason
 
-If an expert's net score drops below 5 (due to a contribution marked bad),
-they are demoted to normal. They can regain expert status by contributing
-more.
-
-Admins can also manually demote an expert. A manually demoted user cannot be
-re-auto-promoted until an admin clears the restriction. The auto-promotion
-query checks that `admin_demoted_at` is `NULL` before promoting.
-
-### 4.4 Protected contributions
-
-Only incorrect data is marked as bad. Data superseded by better measurements
-remains valid — a later, more accurate measurement does not retroactively
-invalidate the original contribution.
+These tables do not carry their own status — the thread's
+`proposal_status` determines whether the data is pending, applied,
+or rejected. When a proposal is approved, the rows linked to the
+thread are applied; rows linked to non-accepted replies within the
+same thread are ignored.
 
 ---
 
-## 5. Audit Trail
+## 4. Database Schema
 
-Community contributions are recorded as discussions: proposals with their
-reviews, identification resolutions, and accepted answers all live in the
-discussion, comment, and proposed-data records. Every applied catalogue change
-is captured row by row in `object_edits`.
+### 4.1 Base catalogue (`db/schema.sql`)
 
-Three administrative operations are recorded in `admin_actions`: creating a
-user account, manually demoting a user, and granting verified status. Each
-entry records who performed it, the target, and a timestamp. Verification notes
-are stored separately in `user_verifications`, which is readable only by
-admins.
+```sql
+-- Provided separately. Contains:
+CREATE TABLE objects (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name            VARCHAR(255) NOT NULL,
+  catalog_id      VARCHAR(64) NULL UNIQUE,
+  entry_type      VARCHAR(64) NOT NULL,
+  right_ascension VARCHAR(16) NULL,
+  declination     VARCHAR(16) NULL,
+  apparent_mag    DECIMAL(6,3) NULL,
+  constellation   VARCHAR(16) NULL,
+  distance_ly     DECIMAL(12,3) NULL,
+  discovered_by   VARCHAR(128) NULL,
+  discovery_year  SMALLINT UNSIGNED NULL,
+  notes           TEXT NULL,
+  status          ENUM('active','deleted') DEFAULT 'active',
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+### 4.2 Forum schema (`htdocs/schema-forum.sql`)
+
+**categories**
+```sql
+CREATE TABLE categories (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(64) NOT NULL,
+  slug          VARCHAR(64) NOT NULL UNIQUE,
+  description   VARCHAR(255) NULL,
+  entry_type    VARCHAR(64) NULL COMMENT 'maps to objects.entry_type',
+  sort_order    INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed rows:
+-- ('General',           'general',           NULL,   1),
+-- ('Stars',             'stars',             'star', 2),
+-- ('Nebulae & Clusters','nebulae-clusters',  'nebula',3),
+-- ('Galaxies',          'galaxies',          'galaxy',4),
+-- ('Solar System',      'solar-system',      'planet',5),
+-- ('Deep Sky',          'deep-sky',          NULL,   6),
+-- ('Help Identifying',  'identifications',   NULL,   7),
+-- ('Catalogue Proposals','proposals',        NULL,   8);
+```
+
+**users**
+```sql
+CREATE TABLE users (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username        VARCHAR(64) NOT NULL UNIQUE,
+  password        VARCHAR(255) NOT NULL,
+  role            ENUM('admin','member') NOT NULL DEFAULT 'member',
+  expertise       ENUM('normal','expert','verified') NOT NULL DEFAULT 'normal',
+  admin_demoted_at TIMESTAMP NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**threads** (replaces `discussions`)
+```sql
+CREATE TABLE threads (
+  id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  category_id           INT UNSIGNED NOT NULL,
+  title                 VARCHAR(255) NOT NULL,
+  body                  TEXT NOT NULL,
+  author_id             INT UNSIGNED NOT NULL,
+  status                ENUM('open','closed') NOT NULL DEFAULT 'open',
+
+  -- Proposal columns (NULL for non-proposal threads)
+  proposal_type         ENUM('add_entry','edit_field','remove_entry') NULL,
+  proposal_status       ENUM('pending','approved','rejected') NULL,
+  reviewer_id           INT UNSIGNED NULL,
+  reviewed_at           DATETIME NULL,
+
+  -- Identification column (NULL for non-identification threads)
+  identified_entry_id   INT UNSIGNED NULL,
+
+  -- Closing
+  closed_by             INT UNSIGNED NULL,
+  closed_reason         VARCHAR(255) NULL,
+
+  created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (category_id)          REFERENCES categories(id),
+  FOREIGN KEY (author_id)            REFERENCES users(id),
+  FOREIGN KEY (reviewer_id)          REFERENCES users(id),
+  FOREIGN KEY (identified_entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
+  FOREIGN KEY (closed_by)            REFERENCES users(id)
+);
+```
+
+**replies** (replaces `comments`)
+```sql
+CREATE TABLE replies (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  thread_id       INT UNSIGNED NOT NULL,
+  body            TEXT NOT NULL,
+  author_id       INT UNSIGNED NOT NULL,
+  is_solution     BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+  FOREIGN KEY (author_id) REFERENCES users(id)
+);
+```
+
+**proposed_entries** (replaces `proposed_objects`)
+```sql
+CREATE TABLE proposed_entries (
+  id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  thread_id           INT UNSIGNED NOT NULL,
+  reply_id            INT UNSIGNED NULL,
+  author_id           INT UNSIGNED NOT NULL,
+  name                VARCHAR(255) NOT NULL,
+  catalog_id          VARCHAR(64) NULL,
+  entry_type          VARCHAR(64) NOT NULL,
+  right_ascension     VARCHAR(16) NULL,
+  declination         VARCHAR(16) NULL,
+  apparent_mag        DECIMAL(6,3) NULL,
+  constellation       VARCHAR(16) NULL,
+  distance_ly         DECIMAL(12,3) NULL,
+  discovered_by       VARCHAR(128) NULL,
+  discovery_year      SMALLINT UNSIGNED NULL,
+  notes               TEXT NULL,
+  created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+  FOREIGN KEY (reply_id)  REFERENCES replies(id) ON DELETE CASCADE,
+  FOREIGN KEY (author_id) REFERENCES users(id)
+);
+```
+
+**proposed_field_edits** (replaces `proposed_edits`)
+```sql
+CREATE TABLE proposed_field_edits (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  thread_id       INT UNSIGNED NOT NULL,
+  reply_id        INT UNSIGNED NULL,
+  entry_id        INT UNSIGNED NOT NULL,
+  author_id       INT UNSIGNED NOT NULL,
+  field           VARCHAR(64) NOT NULL,
+  old_value       VARCHAR(255) NULL,
+  new_value       VARCHAR(255) NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+  FOREIGN KEY (reply_id)  REFERENCES replies(id) ON DELETE CASCADE,
+  FOREIGN KEY (entry_id)  REFERENCES objects(id) ON DELETE CASCADE,
+  FOREIGN KEY (author_id) REFERENCES users(id)
+);
+```
+
+**proposed_removals** (replaces `proposed_marks`)
+```sql
+CREATE TABLE proposed_removals (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  thread_id       INT UNSIGNED NOT NULL,
+  reply_id        INT UNSIGNED NULL,
+  entry_id        INT UNSIGNED NOT NULL,
+  author_id       INT UNSIGNED NOT NULL,
+  reason          TEXT NOT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+  FOREIGN KEY (reply_id)  REFERENCES replies(id) ON DELETE CASCADE,
+  FOREIGN KEY (entry_id)  REFERENCES objects(id) ON DELETE CASCADE,
+  FOREIGN KEY (author_id) REFERENCES users(id)
+);
+```
+
+**entry_edits** (replaces `object_edits`)
+```sql
+CREATE TABLE entry_edits (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  entry_id        INT UNSIGNED NOT NULL,
+  thread_id       INT UNSIGNED NOT NULL,
+  reply_id        INT UNSIGNED NULL,
+  action          ENUM('created','edited','removed') NOT NULL,
+  field           VARCHAR(64) NULL,
+  old_value       VARCHAR(255) NULL,
+  new_value       VARCHAR(255) NULL,
+  reviewer_id     INT UNSIGNED NOT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (entry_id)    REFERENCES objects(id) ON DELETE CASCADE,
+  FOREIGN KEY (thread_id)   REFERENCES threads(id) ON DELETE CASCADE,
+  FOREIGN KEY (reply_id)    REFERENCES replies(id) ON DELETE SET NULL,
+  FOREIGN KEY (reviewer_id) REFERENCES users(id)
+);
+```
+
+Row conventions:
+
+| `action`  | `field`            | `old_value`               | `new_value`              |
+|-----------|--------------------|---------------------------|--------------------------|
+| `created` | populated col name | NULL                      | initial value            |
+| `edited`  | changed col name   | previous value            | proposed value           |
+| `removed` (edit revert) | reverted col | bad value                 | reverted correct value   |
+| `removed` (entry delete) | `status`      | `active`                  | `deleted`                |
+
+**user_verifications**
+```sql
+CREATE TABLE user_verifications (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id         INT UNSIGNED NOT NULL,
+  verified_by_id  INT UNSIGNED NOT NULL,
+  note            TEXT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (user_id)       REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (verified_by_id) REFERENCES users(id)
+);
+```
+
+**admin_actions**
+```sql
+CREATE TABLE admin_actions (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  admin_id        INT UNSIGNED NOT NULL,
+  action          ENUM('create_user','demote_user','verify_user') NOT NULL,
+  target_type     ENUM('user') NOT NULL,
+  target_id       INT UNSIGNED NOT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (admin_id) REFERENCES users(id)
+);
+```
 
 ---
 
-## 6. Database Schema
+## 5. Application Structure
 
-The catalogue table `objects` is defined in `db/schema.sql`. The forum schema
-in `htdocs/schema-forum.sql` defines nine tables: `users`, `discussions`,
-`comments`, `proposed_objects`, `proposed_edits`, `proposed_marks`,
-`object_edits`, `user_verifications`, and `admin_actions`.
-
-### 6.1 `users`
-
-```
-id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-username            VARCHAR(64) NOT NULL UNIQUE
-password            VARCHAR(255) NOT NULL
-role                ENUM('admin','member') DEFAULT 'member'
-expertise           ENUM('normal','expert','verified') DEFAULT 'normal'
-admin_demoted_at    TIMESTAMP NULL
-created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
-### 6.2 `objects`
-
-```
-id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-name                VARCHAR(255) NOT NULL
-catalog_id          VARCHAR(64) NULL UNIQUE
-object_type         VARCHAR(64) NOT NULL
-right_ascension     VARCHAR(16) NULL
-declination         VARCHAR(16) NULL
-apparent_mag        DECIMAL(6,3) NULL
-constellation       VARCHAR(16) NULL
-distance_ly         DECIMAL(12,3) NULL
-discovered_by       VARCHAR(128) NULL
-discovery_year      SMALLINT UNSIGNED NULL
-notes               TEXT NULL
-status              ENUM('active','deleted') DEFAULT 'active'
-created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-```
-
-### 6.3 `discussions`
-
-One table holds all three discussion types. A proposal carries its approval
-state, an identification carries the resolved object link, and a proposal
-spawned from an identification carries the parent link back to it.
-
-```
-id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-object_id             INT UNSIGNED NULL
-type                  ENUM('general','identification','proposal') NOT NULL DEFAULT 'general'
-title                 VARCHAR(255) NOT NULL
-body                  TEXT NOT NULL
-author_id             INT UNSIGNED NOT NULL
-status                ENUM('open','closed') NOT NULL DEFAULT 'open'
-
--- Proposal columns
-proposal_type         ENUM('new_object','edit_field','mark_bad') NULL
-proposal_status       ENUM('pending','approved','rejected') NULL
-reviewer_id           INT UNSIGNED NULL
-reviewed_at           DATETIME NULL
-
--- Identification column
-identified_object_id  INT UNSIGNED NULL
-
--- Link: a proposal spawned from an identification discussion
-parent_discussion_id  INT UNSIGNED NULL
-
--- Closing
-closed_by             INT UNSIGNED NULL
-closed_reason         VARCHAR(255) NULL
-
-created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
-### 6.4 `comments`
-
-```
-id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-discussion_id     INT UNSIGNED NOT NULL
-body              TEXT NOT NULL
-author_id         INT UNSIGNED NOT NULL
-is_accepted       BOOLEAN DEFAULT FALSE
-created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
-### 6.5 `proposed_objects`
-
-Holds the data for a `new_object` proposal, mirroring the `objects` columns and
-linking to the comment that introduced it.
-
-```
-id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-discussion_id       INT UNSIGNED NOT NULL
-comment_id          INT UNSIGNED NOT NULL
-author_id           INT UNSIGNED NOT NULL
-name                VARCHAR(255) NOT NULL
-catalog_id          VARCHAR(64) NULL
-object_type         VARCHAR(64) NOT NULL
-right_ascension     VARCHAR(16) NULL
-declination         VARCHAR(16) NULL
-apparent_mag        DECIMAL(6,3) NULL
-constellation       VARCHAR(16) NULL
-distance_ly         DECIMAL(12,3) NULL
-discovered_by       VARCHAR(128) NULL
-discovery_year      SMALLINT UNSIGNED NULL
-notes               TEXT NULL
-created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
-### 6.6 `proposed_edits`
-
-Holds one proposed field change per row for an `edit_field` proposal.
-
-```
-id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-discussion_id   INT UNSIGNED NOT NULL
-comment_id      INT UNSIGNED NOT NULL
-object_id       INT UNSIGNED NOT NULL
-author_id       INT UNSIGNED NOT NULL
-field           VARCHAR(64) NOT NULL
-old_value       VARCHAR(255) NULL
-new_value       VARCHAR(255) NULL
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
-### 6.7 `proposed_marks`
-
-Holds a `mark_as_bad` proposal.
-
-```
-id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-discussion_id   INT UNSIGNED NOT NULL
-comment_id      INT UNSIGNED NOT NULL
-object_id       INT UNSIGNED NOT NULL
-author_id       INT UNSIGNED NOT NULL
-reason          TEXT NOT NULL
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
-### 6.8 `object_edits`
-
-The per-object edit history. Every row records a single field-level change.
-
-```
-id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-object_id       INT UNSIGNED NOT NULL
-discussion_id   INT UNSIGNED NOT NULL
-comment_id      INT UNSIGNED NULL
-action          ENUM('created','edited','marked_bad') NOT NULL
-field           VARCHAR(64) NULL
-old_value       VARCHAR(255) NULL
-new_value       VARCHAR(255) NULL
-reviewer_id     INT UNSIGNED NOT NULL
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
-Row conventions by action:
-
-| `action` | `field` | `old_value` | `new_value` |
-|---|---|---|---|
-| `created` | The populated column name | `NULL` | The initial value |
-| `edited` | The changed column name | The previous value | The proposed value |
-| `marked_bad` (edit revert) | The reverted column name | The bad value | The reverted correct value |
-| `marked_bad` (creation revert) | `status` | `active` | `deleted` |
-
-### 6.9 `user_verifications`
-
-Records each verification action and its private note. Admins read this table;
-it is not exposed to non-admin users.
-
-```
-id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-user_id         INT UNSIGNED NOT NULL
-verified_by_id  INT UNSIGNED NOT NULL
-note            TEXT NULL
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
-### 6.10 `admin_actions`
-
-```
-id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-admin_id        INT UNSIGNED NOT NULL
-action          ENUM('create_user','demote_user','verify_user')
-target_type     ENUM('user') NOT NULL
-target_id       INT UNSIGNED NOT NULL
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
----
-
-## 7. PHP Application Structure
+### 5.1 Page layout
 
 ```
 htdocs/
-├── index.php
+├── index.php                 — Forum index: category list with thread counts
+├── category.php              — Thread listing for one category
+├── thread.php                — View a thread with its replies
+├── new-thread.php            — Create a new thread
 ├── login.php
 ├── logout.php
-├── register.php
 ├── change-password.php
-├── profile.php
-├── objects.php
-├── discussion.php
-├── new-discussion.php
-├── propose.php
+├── profile.php               — User profile
+├── entry.php                 — Single catalogue entry detail + edit history
+├── catalogue.php             — Browse/search all catalogue entries
 ├── includes/
-│   ├── db.php
-│   ├── auth.php
-│   └── functions.php
+│   ├── db.php                — PDO connection (127.0.0.1:3306)
+│   ├── auth.php              — Session, login, permissions, expertise calc
+│   ├── functions.php         — h(), render_body(), time_ago(), flash_message()
+│   ├── header.php            — HTML shell + nav
+│   └── footer.php            — Close tags
 ├── admin/
-│   ├── index.php
-│   ├── create-user.php
-│   ├── users.php
-│   ├── proposals.php
-│   └── contributions.php
-└── schema-forum.sql
+│   ├── index.php             — Dashboard
+│   ├── users.php             — User list + manage
+│   ├── create-user.php       — Create account
+│   ├── proposals.php         — Pending proposals queue
+│   └── contributions.php     — Browse contribution history
+├── schema-forum.sql          — All forum tables (CREATE statements)
+└── style.css                 — Stylesheet
+```
+
+### 5.2 Key differences from a plain-thread forum
+
+1. **Category slug encodes object type.** The `category.php` page uses
+   `categories.entry_type` to filter the catalogue sidebar, showing
+   only entries relevant to the current category.
+
+2. **Proposal threads show a structured data form.** When creating a
+   thread in the `proposals` category, the author also chooses a
+   proposal type and fills in fields specific to that type (a new
+   entry's full record, or a target entry + field for edits). This
+   structured data is stored in the `proposed_*` tables alongside the
+   thread's text body.
+
+3. **Solution marking on identifications is thread-level.** The OP
+   clicks "Mark as solution" on a reply, which sets `is_solution = 1`
+   and checks the reply for `@entry:` mentions to auto-link the
+   thread. If no known entry is mentioned, the system prompts to
+   create a proposal thread.
+
+4. **Approve/Reject on proposals is thread-level.** Experts see buttons
+   at the top of the thread (not per-reply). All `proposed_*` rows
+   linked to the thread are applied on approval.
+
+### 5.3 Reference syntax implementation
+
+The render function processes post body in this order:
+1. `htmlspecialchars()` for safety
+2. Regex replacements for @mentions
+3. `nl2br()` for line breaks
+
+```php
+function render_body(PDO $pdo, string $text): string
+{
+    $text = h($text);
+    $text = preg_replace('/@([A-Za-z0-9_]+)/',
+        '<a href="profile.php?username=$1">@$1</a>', $text);
+    $text = preg_replace('/@entry:([^\s<>]+)/',
+        '<a href="entry.php?name=$1">@entry:$1</a>', $text);
+    $text = preg_replace('/@thread:(\d+)/',
+        '<a href="thread.php?id=$1">@thread:$1</a>', $text);
+    $text = preg_replace('/@reply:(\d+)/',
+        '<a href="thread.php?rid=$1#reply-$1">@reply:$1</a>', $text);
+    return nl2br($text, false);
+}
 ```
 
 ---
 
-## 8. Local Development
+## 6. Local Development
 
 ### Windows — XAMPP
 
@@ -510,3 +646,6 @@ mysql -u root < db/schema.sql
 mysql -u root < htdocs/schema-forum.sql
 php -S localhost:8080 -t htdocs/
 ```
+
+Default accounts seeded: `admin`/`admin` (admin, verified), `alice`/`password` (member, normal).
+Registration is admin-only; no public signup.
