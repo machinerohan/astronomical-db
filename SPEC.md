@@ -2,13 +2,10 @@
 
 ## Overview
 
-A crowd-sourced MySQL/PHP forum where users discuss astronomical objects,
-submit identifications of unknown objects, propose new catalogue entries, and
-suggest edits to existing ones. Trusted contributors earn expert status
-automatically; admins can verify professionals. The catalogue grows through
-community effort with expert oversight.
-
-Runs on XAMPP (Windows, primary platform) or Nix (Linux development).
+A crowd-sourced forum where users discuss astronomical objects, identify
+unknown ones, and propose new catalogue entries or changes to existing ones.
+Trusted contributors earn expert status automatically. The catalogue grows
+through community effort with expert oversight.
 
 ---
 
@@ -16,255 +13,200 @@ Runs on XAMPP (Windows, primary platform) or Nix (Linux development).
 
 ### 1.1 Account creation
 
-Users register with a username and password. Passwords are bcrypt-hashed.
-Admins can also create temporary accounts — a random password is generated and
-shown to the admin once, who shares it out of band. On first login with a
-temporary password, the user is forced to set their own password.
+Users register with a username and password (bcrypt-hashed). Admins can create
+temporary accounts — a random password is shown to the admin once to share out
+of band. On first login with a temporary password, the user must choose their
+own password.
 
 ### 1.2 Roles
 
-Two orthogonal axes: **role** (site management) and **expertise** (knowledge badge).
+Two independent axes: **role** (site management) and **expertise** (knowledge
+badge).
 
 **Role:**
-- `admin` — full site control. Manage users, grant verified status, write
-  verification notes, demote experts, close any discussion, resolve any
-  identification, mark contributions as bad.
+- `admin` — manage users, grant verified status, write verification notes,
+  demote experts, close discussions, resolve identifications.
 - `member` — participate in discussions, submit identifications, propose
-  objects, suggest edits.
+  objects, suggest changes.
 
 **Expertise:**
 - `normal` — base permissions only.
-- `expert` — can approve/reject proposals and edits submitted by others.
-  Earned automatically through contributions.
+- `expert` — can approve or reject proposals. Earned automatically through
+  contributions.
 - `verified` — same approval power as expert, distinct badge. Granted manually
   by admin after private verification (e.g., confirming professional
-  credentials). Supersedes expert — a verified user has no need of expert.
+  credentials).
 
-Admin and member are independent of expertise. An admin can be normal, expert,
-or verified; the expertise badge is cosmetic for admins but visible on their
-profile.
+An admin may be normal, expert, or verified; the badge is cosmetic for admins
+but visible on their profile.
 
 ### 1.3 Verification notes
 
-Admins can write private notes attached to a user when granting verified
-status (e.g., "confirmed astronomer — checked LinkedIn"). These notes are
-never exposed to users. Only admins can read and write them.
+When granting verified status, an admin may attach a private note (e.g.,
+"confirmed astronomer — checked LinkedIn"). These notes are visible to
+admins only.
 
-### 1.4 Profile
+### 1.4 Profile page
 
-Each user has a profile page showing:
-- Username and role/expertise badges
-- Their contribution log (proposals submitted, edits suggested, IDs resolved,
-  contributions approved, contributions marked bad)
+Each user profile shows:
+- Username, role, and expertise badges
+- Contribution history (proposals submitted, IDs resolved, approved
+  contributions, contributions marked bad)
 - Date joined
 
 ---
 
-## 2. Content — Everything is Discussions
+## 2. Discussions
 
-A single `discussions` table covers all user-generated content: general forum
-threads, identification requests, object proposals, and catalog edits.
+All user-generated content is organized as discussions — forum threads,
+identification requests, and catalogue proposals.
 
-Each discussion has:
-- `type` — `general`, `identification`, `proposal`, or `edit`
-- `title` and `body`
-- `author_id` — who started it
-- `object_id` — optional link to a catalogue object
-- `status` — varies by type
-- Resolution tracking (for identifications)
-- Approval tracking (for proposals and edits)
+Each discussion has a type, title, body, author, and optional link to a
+catalogue object.
 
 ### 2.1 General discussions
 
-Any user can start a general discussion thread, optionally linked to an
-catalogue object (started from the object detail page) or standalone. Anyone
-can comment. No approval needed.
+Any user can start a general discussion thread, optionally linked to a
+catalogue object. Anyone can comment. No approval required.
 
 ### 2.2 Identification discussions
 
-A user posts an image or description of an unknown object, asking "what is
-this?" Other users comment with their identification. Each identification
-comment can reference a known object via `@obj:Sirius` or describe a
+A user posts an image or description of an unknown object and asks for
+identification. Other users comment with their best guess, optionally
+referencing a known catalogue object via `@obj:Sirius` or describing a
 potentially new object.
 
 **Resolution:**
-- The original poster (OP) can accept any comment as the correct answer by
-  clicking "Accept" on that comment. This marks the discussion as
-  `identified` and links it to the identified object.
-- If no satisfactory answer is found, the OP can close the discussion as
-  `unknown`.
-- Admins can accept any comment on any identification (useful when OP is
-  absent). Admins can also close any discussion as a moderation action.
+- The original poster can accept any comment as the correct answer. The
+  discussion is marked identified and linked to the catalogue object.
+- If no answer is found, the OP can close the discussion as unknown.
+- Admins can accept a comment or close the discussion on any identification.
 
-When an identification is resolved, the identified object page shows past
-identification requests and their outcome.
+Resolved identifications appear on the identified object's page.
 
 ### 2.3 Proposal discussions
 
-When a user wants to add a new object to the catalogue, they fill out a form
-with the object's data (name, type, coordinates, magnitude, etc.). This
-creates a `type=proposal` discussion with the form data stored in
-`proposal_data` JSON.
+Proposals add new objects to the catalogue or suggest changes to existing
+ones. Both follow the same approval process.
 
-**Approval flow:**
-- If the submitter is `normal`, the proposal is created with
-  `status = pending`. An expert, verified, or admin must review and
-  approve or reject it.
-- If the submitter is `expert`, `verified`, or `admin`, the proposal is
-  **auto-approved** immediately — the row is inserted into the `objects`
-  table and the discussion is set to `status = approved`.
+- **New object**: the user fills out the full object form (name, type,
+  coordinates, magnitude, etc.).
+- **Edit**: the user specifies a single field change on an existing object
+  (e.g., update distance from 1500 to 1600 ly).
 
-When a proposal is linked to an identification discussion (`parent_discussion_id`),
-the object detail page shows the full chain: ID request → proposal → catalogue
-entry.
+Proposals are created pending review. Expert, verified, and admin users can
+approve or reject any pending proposal, including their own.
 
-### 2.4 Edit discussions
+Marking a previously approved contribution as incorrect is also a proposal.
+Any user can submit one, but only verified and admin users can approve it.
+When approved, the author's net score decreases and the object history shows
+the correction.
 
-Any user can propose a change to a single field on an existing catalogue
-object. This creates a `type=edit` discussion storing the field name, old
-value, and new value.
+When a proposal is linked to an identification (because the ID discovered a
+new object), the object page shows the full chain: identification → proposal
+→ catalogue entry.
 
-**Approval flow:**
-- `normal` users: pending, waits for expert approval.
-- `expert` and above: auto-approved immediately. The `objects` row is updated
-  and the discussion set to `status = approved`.
+### 2.4 Comments
 
-### 2.5 Comments
+Discussions support threaded comments. Each comment has an anchor link for
+direct referencing. On identification discussions, a comment can be marked as
+the accepted answer.
 
-All discussions support threaded comments via `parent_id`. Each comment has an
-anchor link (`#c123`) for direct referencing.
+### 2.5 Reference syntax
 
-### 2.6 Reference syntax
-
-User-generated text (discussion bodies and comments) is rendered through a
-parser that converts references into clickable links:
+Discussion bodies and comments are rendered with clickable references:
 
 | Syntax | Links to |
 |---|---|
-| `@username` | User profile page |
-| `@obj:Sirius` | Catalogue object page (by name or catalog ID) |
+| `@username` | User profile |
+| `@obj:Sirius` | Catalogue object (by name or catalog ID) |
 | `@discussion:42` | Discussion thread |
-| `@comment:123` | Specific comment (with anchor) |
+| `@comment:123` | Specific comment |
 
-The parser runs `htmlspecialchars` for safety before inserting links.
+All output is HTML-escaped for safety.
 
 ---
 
 ## 3. Catalogue
 
-### 3.1 The `objects` table
+### 3.1 Objects
 
-The core catalogue stores astronomical objects with fields for name, catalog
-ID, object type, right ascension, declination, apparent magnitude,
-constellation, distance in light years, discoverer, discovery year, and notes.
+The catalogue stores astronomical objects with fields for name, catalog ID,
+object type, right ascension, declination, magnitude, constellation, distance,
+discoverer, discovery year, and notes.
 
-### 3.2 Object history timeline
+### 3.2 Object history
 
-Each object's detail page shows a full history of how its data was assembled:
-- Initial creation (which proposal discussion, who proposed it, who approved)
-- Every approved edit (who suggested, who approved)
-- Every accepted identification request resolved to this object
-- Any contributions later marked as bad and why
+Each object's page shows how its data was assembled:
+- The proposal that created it.
+- Every approved edit that changed it.
+- Every resolved identification linked to it.
+- Any contributions later marked as incorrect and why.
 
-This makes the provenance of every data point transparent.
+### 3.3 Direct editing
 
-### 3.3 Direct editing by experts and above
-
-Users with `expert` expertise or higher can edit the catalogue directly —
-changes take effect immediately without going through the proposal queue. A
-discussion of type `edit` is still created for history (auto-approved), so the
-change appears in the object's timeline.
+Expert and above users can edit the catalogue immediately without waiting for
+approval. A proposal discussion is created in approved state to record the
+change. This is the same approval mechanism — the user has permission to
+approve proposals, so they approve their own right away.
 
 ---
 
 ## 4. Moderation and Quality
 
-### 4.1 Permission matrix
+### 4.1 Permissions
 
 | Action | normal | expert | verified | admin |
 |---|---|---|---|---|
 | Comment, start discussions | ✓ | ✓ | ✓ | ✓ |
-| Propose new object | ✓ | ✓ | ✓ | ✓ |
-| Suggest edit | ✓ | ✓ | ✓ | ✓ |
+| Propose object or change | ✓ | ✓ | ✓ | ✓ |
 | Submit identification | ✓ | ✓ | ✓ | ✓ |
-| Approve/reject others' proposals | — | ✓ | ✓ | ✓ |
-| Approve/reject others' edits | — | ✓ | ✓ | ✓ |
-| Edit catalogue directly | — | ✓ | ✓ | ✓ |
+| Approve or reject proposals | — | ✓ | ✓ | ✓ |
+| Propose marking contribution as bad | ✓ | ✓ | ✓ | ✓ |
+| Approve mark-bad proposals | — | — | ✓ | ✓ |
 | Accept answer on own ID | ✓ | ✓ | ✓ | ✓ |
 | Accept answer on any ID | — | — | — | ✓ |
 | Close any discussion | — | — | — | ✓ |
-| Mark contributions as bad | — | — | ✓ | ✓ |
 | Manage users, demote, verify | — | — | — | ✓ |
 | Read/write verification notes | — | — | — | ✓ |
 
-### 4.2 Marking contributions as bad
+### 4.2 Auto-promotion
 
-Verified users and admins can flag a previously approved proposal or edit as
-incorrect (`mark_bad` in the contribution log). This does not delete the
-contribution — it adds a note to the history timeline explaining why it was
-wrong (e.g., "incorrect distance measurement, superseded by Gaia DR4").
+A user's net score is the number of approved proposals minus the number of
+their contributions marked as bad. When it reaches 5, the user is promoted to
+expert. Promotion is recalculated whenever a proposal is approved, rejected,
+or marked bad.
 
-When a contribution is marked bad, the author's net approved count decreases.
-This may trigger auto-demotion (see below).
+### 4.3 Auto-demotion
 
-Experts cannot mark contributions as bad. They can only approve or reject.
+If an expert's net score drops below 5 (due to a contribution marked bad),
+they are demoted to normal. They can regain expert status by contributing
+more.
 
-### 4.3 Auto-promotion to expert
+Admins can also manually demote an expert. A manually demoted user cannot be
+re-auto-promoted until an admin clears the restriction.
 
-Expertise is computed dynamically from the contribution log, not stored as a
-static counter.
+### 4.4 Protected contributions
 
-```
-Net score = (approved proposals + approved edits) - (contributions marked bad)
-```
-
-When a user's net score reaches 5, they are automatically promoted to
-`expert`. Promotion is recalculated on every relevant event (approval,
-rejection, mark-bad).
-
-### 4.4 Auto-demotion from expert
-
-If a demoted (not marked bad) contribution drops an expert's net score below
-5, the system automatically demotes them back to `normal`. They can regain
-expert status by contributing more.
-
-Admins can also manually demote an expert (e.g., for bad-faith
-contributions), which sets a flag blocking re-auto-promotion until the admin
-clears it.
-
-### 4.5 Protected contributions
-
-Marking a contribution as bad is for **incorrect data**, not for obsolete data
-that has been superseded by better measurements or changes in scientific
-consensus. If a later, more accurate measurement replaces an old one, the old
-contribution remains valid for its time and is not marked bad. This ensures
-users are not penalized for contributing honest data that later science
-surpasses.
+Only incorrect data is marked as bad. Data superseded by better measurements
+remains valid — a later, more accurate measurement does not retroactively
+invalidate the original contribution.
 
 ---
 
-## 5. Contribution Log
+## 5. Audit Trail
 
-The `contribution_log` table records every meaningful action. It is the
-source of truth for user expertise and object history.
+All community contributions are recorded as discussions. Proposals,
+approvals, rejections, identification resolutions, and accepted answers are
+all captured by the discussion and comment records.
 
-Recorded actions:
-- `propose_object` — a proposal discussion was created
-- `propose_edit` — an edit discussion was created
-- `approve_proposal` — a proposal was approved (manual or auto)
-- `approve_edit` — an edit was approved (manual or auto)
-- `reject_proposal` / `reject_edit` — a proposal or edit was rejected
-- `direct_edit` — an expert or above edited the catalogue directly
-- `mark_bad` — a contribution was flagged as incorrect (metadata includes
-  reason and original approver)
-- `resolve_id` — an identification was resolved (metadata includes which
-  comment was accepted)
-- `close_discussion` — a discussion was closed by admin
-- `create_user` — admin created a temporary account
-- `demote_user` / `verify_user` — admin changed a user's expertise
+Three operations involve no discussion and are recorded separately:
+- Creating a temporary user account
+- Manually demoting a user
+- Granting verified status
 
-Each log entry stores `user_id`, `action`, `target_type`, `target_id`,
-`metadata` (JSON), and a timestamp.
+Each such action records who performed it, what target, any relevant metadata,
+and a timestamp.
 
 ---
 
@@ -273,103 +215,76 @@ Each log entry stores `user_id`, `action`, `target_type`, `target_id`,
 ### 6.1 `users`
 
 ```
-id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-username        VARCHAR(64) NOT NULL UNIQUE
-password        VARCHAR(255) NOT NULL          -- bcrypt hash
-role            ENUM('admin','member') DEFAULT 'member'
-expertise       ENUM('normal','expert','verified') DEFAULT 'normal'
-temp_password   VARCHAR(255) NULL              -- bcrypt of temp password, cleared after first login
-admin_demoted_at TIMESTAMP NULL                -- set when admin demotes, blocks auto re-promotion
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+username            VARCHAR(64) NOT NULL UNIQUE
+password            VARCHAR(255) NOT NULL
+role                ENUM('admin','member') DEFAULT 'member'
+expertise           ENUM('normal','expert','verified') DEFAULT 'normal'
+temp_password       VARCHAR(255) NULL
+admin_demoted_at    TIMESTAMP NULL
+verified_by_id      INT UNSIGNED NULL
+verified_at         DATETIME NULL
+verification_note   TEXT NULL
+created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
-### 6.2 `verification_notes`
-
-```
-id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-user_id         INT UNSIGNED NOT NULL UNIQUE
-admin_id        INT UNSIGNED NOT NULL
-note            TEXT NOT NULL
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-updated_at      TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP
-```
-
-### 6.3 `objects` (catalogue)
-
-```
-id, name, catalog_id, object_type, right_ascension, declination,
-apparent_mag, constellation, distance_ly, discovered_by, discovery_year,
-notes, created_at
-
-Primary key on id
-Unique key on catalog_id
-Indexes on object_type, constellation
-```
-
-### 6.4 `discussions`
+### 6.2 `objects`
 
 ```
 id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-object_id           INT UNSIGNED NULL              -- linked catalogue object
-type                ENUM('general','identification','proposal','edit') DEFAULT 'general'
-title               VARCHAR(255) NOT NULL
-body                TEXT NOT NULL
-author_id           INT UNSIGNED NOT NULL
-
--- Identification resolution
-status              ENUM('open','identified','unknown','approved','rejected','closed') NULL
-resolved_comment_id INT UNSIGNED NULL
-resolved_object_id  INT UNSIGNED NULL
-resolved_by         INT UNSIGNED NULL
-
--- Edit fields (for type=edit)
-edit_field          VARCHAR(64) NULL
-edit_old_value      TEXT NULL
-edit_new_value      TEXT NULL
-
--- Proposal data (for type=proposal, JSON of object fields)
-proposal_data       JSON NULL
-
--- Parent ID link (proposal linked back to the ID that prompted it)
-parent_discussion_id INT UNSIGNED NULL
-
--- Moderation
-closed_by           INT UNSIGNED NULL
-closed_reason       TEXT NULL
-
+name                VARCHAR(255) NOT NULL
+catalog_id          VARCHAR(64) NULL UNIQUE
+object_type         VARCHAR(64) NOT NULL
+right_ascension     VARCHAR(16) NULL
+declination         VARCHAR(16) NULL
+apparent_mag        DECIMAL(6,3) NULL
+constellation       VARCHAR(16) NULL
+distance_ly         DECIMAL(12,3) NULL
+discovered_by       VARCHAR(128) NULL
+discovery_year      SMALLINT UNSIGNED NULL
+notes               TEXT NULL
 created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-Foreign keys: object_id, author_id, resolved_comment_id, resolved_object_id,
-              parent_discussion_id, closed_by
 ```
 
-### 6.5 `comments`
+### 6.3 `discussions`
+
+```
+id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+object_id             INT UNSIGNED NULL
+type                  ENUM('general','identification','proposal') DEFAULT 'general'
+title                 VARCHAR(255) NOT NULL
+body                  TEXT NOT NULL
+author_id             INT UNSIGNED NOT NULL
+status                ENUM('open','identified','unknown','pending','approved','rejected','closed') NULL
+proposal_data         JSON NULL
+parent_discussion_id  INT UNSIGNED NULL
+closed_by             INT UNSIGNED NULL
+closed_reason         TEXT NULL
+created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+```
+
+### 6.4 `comments`
+
+```
+id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+discussion_id     INT UNSIGNED NOT NULL
+parent_id         INT UNSIGNED NULL
+body              TEXT NOT NULL
+author_id         INT UNSIGNED NOT NULL
+is_accepted       BOOLEAN DEFAULT FALSE
+created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+```
+
+### 6.5 `admin_actions`
 
 ```
 id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-discussion_id   INT UNSIGNED NOT NULL
-parent_id       INT UNSIGNED NULL               -- nested reply support
-body            TEXT NOT NULL
-author_id       INT UNSIGNED NOT NULL
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-Foreign keys: discussion_id, author_id
-```
-
-### 6.6 `contribution_log`
-
-```
-id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
-user_id         INT UNSIGNED NOT NULL
-action          ENUM('propose_object','propose_edit','approve_proposal','approve_edit',
-                     'direct_edit','reject_proposal','reject_edit','mark_bad',
-                     'resolve_id','close_discussion','create_user','demote_user','verify_user')
-target_type     ENUM('discussion','comment','user') NOT NULL
+admin_id        INT UNSIGNED NOT NULL
+action          ENUM('create_user','demote_user','verify_user')
+target_type     ENUM('user') NOT NULL
 target_id       INT UNSIGNED NOT NULL
-metadata        JSON NULL                        -- flexible: holds reason, original_approver, etc.
+metadata        JSON NULL
 created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-Foreign key: user_id
 ```
 
 ---
@@ -378,34 +293,28 @@ Foreign key: user_id
 
 ```
 htdocs/
-├── index.php                          -- Home: recent discussions, recent IDs
-├── login.php                          -- Login form + POST handler
-├── logout.php                         -- Destroy session, redirect
-├── register.php                       -- Register form + POST handler
-├── change-password.php                -- First login / voluntary password change
-├── profile.php?u=username             -- User profile with contribution log
-├── objects.php?id=N                   -- Object detail + history timeline + linked discussions
-├── discussion.php?id=N                -- Thread + comments + reply form + resolve controls
-├── new-discussion.php                 -- Start a discussion
-├── propose-object.php                 -- Form for new catalogue object
-├── propose-edit.php?object_id=N       -- Form for field edit suggestion
+├── index.php
+├── login.php
+├── logout.php
+├── register.php
+├── change-password.php
+├── profile.php
+├── objects.php
+├── discussion.php
+├── new-discussion.php
+├── propose.php
 ├── includes/
-│   ├── db.php                         -- PDO connection (configurable)
-│   ├── auth.php                       -- Session init, login check, permission checks
-│   └── functions.php                  -- render_body(), auto_promote(), time_ago(), etc.
+│   ├── db.php
+│   ├── auth.php
+│   └── functions.php
 ├── admin/
-│   ├── index.php                      -- Dashboard summary
-│   ├── create-user.php                -- Create temporary account
-│   ├── users.php                      -- List/ manage users, set expertise, verification notes
-│   ├── proposals.php                  -- Pending proposals (approve/reject)
-│   ├── edits.php                      -- Pending edits (approve/reject)
-│   └── contributions.php              -- Browse log, mark bad
-└── schema-forum.sql                   -- All CREATE/ALTER statements
+│   ├── index.php
+│   ├── create-user.php
+│   ├── users.php
+│   ├── proposals.php
+│   └── contributions.php
+└── schema-forum.sql
 ```
-
-Each page follows a consistent pattern: POST handler at top, redirect on
-success, HTML template at bottom. No framework — plain PHP with
-`htmlspecialchars` for output and prepared statements for SQL.
 
 ---
 
@@ -414,7 +323,7 @@ success, HTML template at bottom. No framework — plain PHP with
 ### Windows — XAMPP
 
 ```
-1. Install XAMPP, start Apache + MySQL from the control panel
+1. Install XAMPP, start Apache + MySQL
 2. mysql -u root < db\schema.sql
 3. mysql -u root < htdocs\schema-forum.sql
 4. Place htdocs/ in C:\xampp\htdocs\astronomical\
@@ -429,6 +338,3 @@ mysql -u root < db/schema.sql
 mysql -u root < htdocs/schema-forum.sql
 php -S localhost:8080 -t htdocs/
 ```
-
-The Nix shell provides `mysql`, `mysqld`, and `mysqladmin` pre-configured
-with a project-local data directory (`.mysql-data/`).
