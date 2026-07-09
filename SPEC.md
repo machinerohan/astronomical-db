@@ -88,8 +88,10 @@ that reply and closes the thread.
 
 If the identification points to an existing catalogue entry, the
 thread is linked to it via `identified_entry_id`. If it points to
-something new, a proposal thread is automatically created with a
-cross-reference back to the identification thread.
+something new, a proposal thread is automatically created. The
+proposal's `parent_reply_id` points to the reply that was marked
+as solution, so the full chain (ident thread → solution reply →
+proposal → approved entry) is preserved.
 
 The UI is a simple "Mark as solution" button on each reply, visible
 only to the thread author and admins. No dropdown, no object selector.
@@ -393,6 +395,9 @@ CREATE TABLE threads (
   -- Identification column (NULL for non-identification threads)
   identified_entry_id   INT UNSIGNED NULL,
 
+  -- Link: a proposal spawned from a solution reply on an identification thread
+  parent_reply_id       INT UNSIGNED NULL,
+
   -- Closing
   closed_by             INT UNSIGNED NULL,
   closed_reason         VARCHAR(255) NULL,
@@ -403,6 +408,7 @@ CREATE TABLE threads (
   FOREIGN KEY (author_id)            REFERENCES users(id),
   FOREIGN KEY (reviewer_id)          REFERENCES users(id),
   FOREIGN KEY (identified_entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
+  FOREIGN KEY (parent_reply_id)      REFERENCES replies(id) ON DELETE SET NULL,
   FOREIGN KEY (closed_by)            REFERENCES users(id)
 );
 ```
