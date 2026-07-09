@@ -37,10 +37,11 @@ pattern), each showing its unread/recent thread count.
 
 Because a category (like `nebulae-clusters`) can map to multiple object
 types (e.g., `nebula`, `planetary_nebula`, `open_cluster`), the 1:N
-mapping is stored in a junction table: `category_entry_types`. When a
-user views a category, the sidebar uses an `IN()` clause against this
-junction table to filter catalogue entries relevant to that category.
-This avoids slow `LIKE` string matching and normalizes the data.
+mapping is stored in a junction table: `category_entry_types`. The
+junction table exists for data normalization and future use (e.g., a
+catalogue filter keyed to the current category), but the category page
+itself is a thread listing — it does not implement a per-category
+catalogue sidebar.
 
 When a thread is created in a category that has mapped entry types,
 the system automatically links the thread to that catalogue type
@@ -112,16 +113,16 @@ mark any reply as the solution. This sets `is_solution = true` on
 that reply and closes the thread.
 
 If the identification points to an existing catalogue entry, the
-thread is linked to it via `identified_entry_id`. If it points to
-something new, a proposal thread is automatically created with
-`parent_reply_id` pointing to the solution reply. The system then
-prompts the solution reply's author (or the OP) to fill out the
-full entry form as `proposed_entries` rows within that new proposal.
+thread is linked to it via `identified_entry_id`. The system checks
+the solution reply for `@entry:` mentions to auto-link the existing
+entry. If the reply mentions no known entry, the solver (or the OP)
+manually creates a proposal thread in the relevant proposals
+sub-category with `parent_reply_id` pointing to the solution reply.
 `identified_entry_id` stays NULL on the ident thread until the
-proposal is approved and the entry exists, at which point the system
-sets `identified_entry_id` to the newly created entry. This preserves
-the full chain: ident thread → solution reply → proposal → approved
-entry.
+proposal is approved and the entry exists, at which point whoever
+reviews the proposal sets `identified_entry_id` to the newly created
+entry. This preserves the full chain: ident thread → solution reply
+→ proposal → approved entry.
 
 The UI is a simple "Mark as solution" button on each reply, visible
 only to the thread author and admins. No dropdown, no object selector.
@@ -246,9 +247,10 @@ Each user profile shows:
 
 ### 2.6 Auto-promotion (expert)
 
-Net score = approved proposals (counted per proposal-data row that was
-applied) − proposals that were later removed (counted per row in a
-remove_entry that targeted one of this user's contributions). When net
+Net score = approved proposals (counted per thread where the user's
+proposal data was accepted) − proposals that were later removed
+(counted per `entry_edits` row in a remove_entry that targeted one of
+this user's contributions). When net
 score reaches 5, the user is promoted to `expert`. Recalculated
 whenever a proposal is approved, rejected, or applied as a removal.
 
@@ -259,10 +261,10 @@ author of the original contribution being reverted and stores their ID
 in `target_author_id`. The negative score query is then a fast, indexed
 lookup: `SELECT COUNT(*) FROM entry_edits WHERE action = 'removed' AND target_author_id = ?`.
 
-Similarly, the positive score query counts applied `proposed_*` rows
-where the author is the user, checking either `threads.is_accepted = 1`
-(for OP proposals) or `replies.is_solution = 1` (for reply proposals).
-Ensure indexes exist on `threads(is_accepted)` and `replies(is_solution)`.
+Similarly, the positive score query checks how many threads
+(`proposal_status = 'approved'`) or `threads.is_accepted = 1` (for
+OP's proposal) the user contributed to. Indexes exist on
+`threads(is_accepted)` and `replies(is_solution)`.
 
 ### 2.7 Auto-demotion
 
@@ -540,7 +542,7 @@ CREATE TABLE proposed_field_edits (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   thread_id       INT UNSIGNED NOT NULL,
   reply_id        INT UNSIGNED NULL COMMENT 'NULL if data belongs to OP',
-  entry_id        INT UNSIGNED NOT NULL,
+  entry_id        INT UNSIGNED NULL,
   author_id       INT UNSIGNED NOT NULL,
   field           VARCHAR(64) NOT NULL,
   old_value       VARCHAR(255) NULL,
@@ -560,7 +562,7 @@ CREATE TABLE proposed_removals (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   thread_id       INT UNSIGNED NOT NULL,
   reply_id        INT UNSIGNED NULL COMMENT 'NULL if data belongs to OP',
-  entry_id        INT UNSIGNED NOT NULL,
+  entry_id        INT UNSIGNED NULL,
   target_field    VARCHAR(64) NULL COMMENT 'Specific field being reverted (NULL if removing whole entry)',
   author_id       INT UNSIGNED NOT NULL,
   reason          TEXT NOT NULL,
@@ -577,7 +579,7 @@ CREATE TABLE proposed_removals (
 ```sql
 CREATE TABLE entry_edits (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  entry_id        INT UNSIGNED NOT NULL,
+  entry_id        INT UNSIGNED NULL,
   thread_id       INT UNSIGNED NOT NULL,
   reply_id        INT UNSIGNED NULL,
   target_author_id INT UNSIGNED NULL COMMENT 'Original author being reverted, for fast demotion queries',
@@ -673,10 +675,10 @@ htdocs/
 ### 5.2 Key differences from a plain-thread forum
 
 1. **Category hierarchy encodes object type.** The `category.php` page
-   uses the category's mapped `entry_type`s via the `category_entry_types`
-   junction table to filter the catalogue sidebar, showing only entries
-   relevant to the current category. Proposal sub-categories sit under
-   their parent in the nav tree.
+   lists threads for the current category. The `category_entry_types`
+   junction table exists for data normalization (no comma-separated
+   types) and future catalogue-filtering features. Proposal sub-categories
+   sit under their parent in the nav tree.
 
 2. **Posts can carry structured proposal data.** When composing a
    reply inside the `proposals` category, or creating the thread itself,
@@ -689,8 +691,8 @@ htdocs/
 3. **Solution marking on identifications is thread-level.** The OP
    clicks "Mark as solution" on a reply, which sets `is_solution = 1`
    and checks the reply for `@entry:` mentions to auto-link the
-   thread. If no known entry is mentioned, the system prompts to
-   create a proposal thread.
+   thread. If no known entry is mentioned, the solver manually creates
+   a proposal thread in the relevant proposals sub-category.
 
 4. **Approve/Reject on proposals is thread-level, but data is
    per-post.** Experts see Approve/Reject buttons at the top of the
@@ -718,7 +720,7 @@ function render_body(PDO $pdo, string $text): string
         
     $text = preg_replace_callback('/@entry:([^\s<>]+)/',
         function($m) {
-            return '<a href="entry.php?q=' . urlencode($m[1]) . '">@entry:' . $m[1] . '</a>';
+            return '<a href="entry.php?q=' . urlencode($m[1]) . '">@entry:' . h($m[1]) . '</a>';
         }, $text);
         
     $text = preg_replace('/@thread:(\d+)/',
@@ -740,17 +742,21 @@ function render_body(PDO $pdo, string $text): string
 ```
 1. Install XAMPP, start Apache + MySQL
 2. mysql -u root < db\schema.sql
-3. mysql -u root < htdocs\schema-forum.sql
-4. Place htdocs/ in C:\xampp\htdocs\astronomical\
-5. Visit http://localhost/astronomical/
+3. mysql -u root < db\seed.sql
+4. mysql -u root < htdocs\schema-forum.sql
+5. mysql -u root < htdocs\schema-forum-seed.sql
+6. Place htdocs/ into C:\xampp\htdocs\astroforum\
+7. Visit http://localhost/astroforum/
 ```
 
 ### Linux — Nix
 
 ```
 nix develop
-mysql -u root < db/schema.sql
-mysql -u root < htdocs/schema-forum.sql
+mysql < db/schema.sql
+mysql < db/seed.sql
+mysql < htdocs/schema-forum.sql
+mysql < htdocs/schema-forum-seed.sql
 php -S localhost:8080 -t htdocs/
 ```
 
