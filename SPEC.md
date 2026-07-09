@@ -45,6 +45,9 @@ Threads are the basic unit of discussion. A thread has:
 - A title and body (body is plain text with reference syntax)
 - An author
 - A category (FK to `categories`)
+- An optional link to a catalogue entry (FK `object_id`) — set when the
+  thread is explicitly about a known object. The entry detail page lists
+  all threads linked this way.
 - A status: `open` or `closed`
 - A created-at timestamp
 
@@ -75,10 +78,13 @@ Each reply has:
   reply as the correct answer (identification threads only)
 - A created-at timestamp
 
-Replies have no special proposal-data attachment UI. Instead, a user
-who wants to propose catalogue data just writes a normal reply with
-structured information. The proposal-system UI appears only at the
-thread level (see §1.5).
+Reply authors can optionally attach structured proposal data (a new
+entry's fields, or a target entry + field change). The form to do so
+appears inline when composing a reply inside the `proposals` category.
+This keeps proposals attached to a specific reply so multiple
+participants can suggest different data within the same thread without
+overwriting each other. The data is stored in `proposed_*` tables
+keyed to `reply_id`.
 
 ### 1.4 Marking a solution (identification threads)
 
@@ -88,10 +94,15 @@ that reply and closes the thread.
 
 If the identification points to an existing catalogue entry, the
 thread is linked to it via `identified_entry_id`. If it points to
-something new, a proposal thread is automatically created. The
-proposal's `parent_reply_id` points to the reply that was marked
-as solution, so the full chain (ident thread → solution reply →
-proposal → approved entry) is preserved.
+something new, a proposal thread is automatically created with
+`parent_reply_id` pointing to the solution reply. The system then
+prompts the solution reply's author (or the OP) to fill out the
+full entry form as `proposed_entries` rows within that new proposal.
+`identified_entry_id` stays NULL on the ident thread until the
+proposal is approved and the entry exists, at which point the system
+sets `identified_entry_id` to the newly created entry. This preserves
+the full chain: ident thread → solution reply → proposal → approved
+entry.
 
 The UI is a simple "Mark as solution" button on each reply, visible
 only to the thread author and admins. No dropdown, no object selector.
@@ -111,18 +122,21 @@ catalogue. Three types:
 - **remove_entry** — propose soft-deleting an existing entry (with
   reason)
 
-Any user can start a proposal thread. When creating the thread, the
-user chooses the proposal type and fills out a structured form
-alongside the thread body. This data is stored in typed tables
-(§3.4) linked to the thread.
+Any user can start a proposal thread. The thread body explains the
+motivation. Then, any participant can reply and attach structured
+proposal data (the full entry for `add_entry`, or target + field for
+`edit_field`/`remove_entry`). Each reply carries its own proposal
+data, so multiple people can propose different values and the thread
+preserves the full history.
 
 **Review process:**
 - A proposal is `pending` on creation
 - Expert, verified, and admin users see "Approve" and "Reject"
-  buttons at the top of the thread (not per-reply)
-- Approval applies the proposed data to the catalogue, writes the
-  change to the edit history, sets the thread to `approved`, and
-  recalculates contributor expertise scores
+  buttons at the top of the thread
+- On approval, the reviewer selects **which reply's data** to apply
+  via a simple dropdown. Only that reply's `proposed_*` rows are
+  applied to the catalogue and written to `entry_edits`. The selected
+  reply gets `is_solution = 1`.
 - Rejection sets the thread to `rejected`; no catalogue changes
 - Moderators can leave a reply explaining their decision
 
@@ -230,6 +244,13 @@ cannot be re-auto-promoted until an admin clears the restriction.
 | Close any thread                   | —      | —      | —        | ✓     |
 | Manage users, demote, verify       | —      | —      | —        | ✓     |
 | Read/write verification notes      | —      | —      | —        | ✓     |
+
+### 2.9 Protected contributions
+
+Only incorrect data should be flagged for removal. Data superseded by
+better measurements remains valid — a later, more accurate measurement
+does not retroactively invalidate the original contribution. This is a
+policy rule enforced by reviewers, not a system constraint.
 
 ---
 
@@ -384,6 +405,7 @@ CREATE TABLE threads (
   title                 VARCHAR(255) NOT NULL,
   body                  TEXT NOT NULL,
   author_id             INT UNSIGNED NOT NULL,
+  entry_id              INT UNSIGNED NULL COMMENT 'direct link to a catalogue entry',
   status                ENUM('open','closed') NOT NULL DEFAULT 'open',
 
   -- Proposal columns (NULL for non-proposal threads)
@@ -406,6 +428,7 @@ CREATE TABLE threads (
 
   FOREIGN KEY (category_id)          REFERENCES categories(id),
   FOREIGN KEY (author_id)            REFERENCES users(id),
+  FOREIGN KEY (entry_id)             REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (reviewer_id)          REFERENCES users(id),
   FOREIGN KEY (identified_entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (parent_reply_id)      REFERENCES replies(id) ON DELETE SET NULL,
@@ -590,12 +613,12 @@ htdocs/
    `categories.entry_type` to filter the catalogue sidebar, showing
    only entries relevant to the current category.
 
-2. **Proposal threads show a structured data form.** When creating a
-   thread in the `proposals` category, the author also chooses a
-   proposal type and fills in fields specific to that type (a new
-   entry's full record, or a target entry + field for edits). This
-   structured data is stored in the `proposed_*` tables alongside the
-   thread's text body.
+2. **Replies can carry structured proposal data.** When composing a
+   reply inside the `proposals` category, a form appears below the
+   textarea for attaching entry fields, a target + field name for
+   edits, or a target + reason for removals. This data is stored in
+   the `proposed_*` tables keyed to `reply_id`, so multiple replies
+   can carry different proposals within the same thread.
 
 3. **Solution marking on identifications is thread-level.** The OP
    clicks "Mark as solution" on a reply, which sets `is_solution = 1`
@@ -603,9 +626,11 @@ htdocs/
    thread. If no known entry is mentioned, the system prompts to
    create a proposal thread.
 
-4. **Approve/Reject on proposals is thread-level.** Experts see buttons
-   at the top of the thread (not per-reply). All `proposed_*` rows
-   linked to the thread are applied on approval.
+4. **Approve/Reject on proposals is thread-level, but data is
+   per-reply.** Experts see Approve/Reject buttons at the top of the
+   thread. On approval, a dropdown lets them pick which reply's data
+   to apply. Only that reply's `proposed_*` rows are written to the
+   catalogue and `entry_edits`.
 
 ### 5.3 Reference syntax implementation
 
