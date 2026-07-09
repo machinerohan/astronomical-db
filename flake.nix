@@ -17,6 +17,7 @@
 
           packages = [
             pkgs.mariadb       # MySQL-compatible server + client
+            pkgs.php           # PHP built-in server for development
           ];
 
           shellHook = ''
@@ -39,6 +40,7 @@
             echo "  mysqld &    — start MySQL server (background)"
             echo "  mysql       — connect with project-local socket"
             echo "  mysqladmin shutdown — stop the server"
+            echo "  php -S localhost:8080 -t htdocs/  — start PHP dev server"
             echo "  run: mysql < db/schema.sql  to load the schema"
           '';
         };
