@@ -1,9 +1,9 @@
 # AstroForum — Specification
 
 An astronomy discussion forum with a community-curated catalogue of
-celestial objects. Think of it as a regular forum where every category
-maps to an object type in the catalogue, and threads can propose changes
-to the catalogue itself.
+celestial objects. It functions as a structured forum where categories
+map to object types in the catalogue, and threads propose changes to
+the catalogue itself.
 
 ---
 
@@ -15,19 +15,19 @@ Every thread lives in exactly one category. Categories form a
 two-level hierarchy: top-level categories (`general`, `identifications`,
 and object-type groups) each have a child `proposals` sub-category.
 
-| Category                  | Slug                 | Parent   | Entry type                     |
-|---------------------------|----------------------|----------|--------------------------------|
-| General                   | `general`            | NULL     | NULL                           |
-| Help Identifying          | `identifications`    | NULL     | NULL                           |
-| Stars                     | `stars`              | NULL     | star                           |
-| ├ Stars — Proposals       | `stars-proposals`    | `stars`  | star                           |
-| Nebulae & Clusters        | `nebulae-clusters`   | NULL     | nebula, cluster, etc.          |
+| Category                  | Slug                 | Parent   | Entry types mapped            |
+|---------------------------|----------------------|----------|-------------------------------|
+| General                   | `general`            | NULL     | NULL                          |
+| Help Identifying          | `identifications`    | NULL     | NULL                          |
+| Stars                     | `stars`              | NULL     | star                          |
+| ├ Stars — Proposals       | `stars-proposals`    | `stars`  | star                          |
+| Nebulae & Clusters        | `nebulae-clusters`   | NULL     | nebula, cluster, etc.         |
 | ├ Nebulae — Proposals     | `nebulae-proposals`  | `nebulae-clusters` | nebula, cluster, etc.|
-| Galaxies                  | `galaxies`           | NULL     | galaxy, quasar                 |
+| Galaxies                  | `galaxies`           | NULL     | galaxy, quasar                |
 | ├ Galaxies — Proposals    | `galaxies-proposals` | `galaxies` | galaxy, quasar               |
-| Solar System              | `solar-system`       | NULL     | planet, moon, asteroid, comet  |
+| Solar System              | `solar-system`       | NULL     | planet, moon, asteroid, comet |
 | ├ Solar System — Proposals| `solar-proposals`    | `solar-system` | planet, moon, etc.       |
-| Deep Sky                  | `deep-sky`           | NULL     | anything not matched above     |
+| Deep Sky                  | `deep-sky`           | NULL     | anything not matched above    |
 | ├ Deep Sky — Proposals    | `deep-sky-proposals` | `deep-sky` | anything not matched above   |
 
 Categories are stored in a `categories` table with a self-referencing
@@ -35,10 +35,18 @@ Categories are stored in a `categories` table with a self-referencing
 child sub-categories indented beneath them (standard forum index
 pattern), each showing its unread/recent thread count.
 
-When a thread is created in a category that has an `entry_type`, the
-system automatically links the thread to that catalogue type. This
-includes both parent categories (regular discussion) and their proposal
-sub-categories (proposal threads). No dropdown picker needed.
+Because a category (like `nebulae-clusters`) can map to multiple object
+types (e.g., `nebula`, `planetary_nebula`, `open_cluster`), the 1:N
+mapping is stored in a junction table: `category_entry_types`. When a
+user views a category, the sidebar uses an `IN()` clause against this
+junction table to filter catalogue entries relevant to that category.
+This avoids slow `LIKE` string matching and normalizes the data.
+
+When a thread is created in a category that has mapped entry types,
+the system automatically links the thread to that catalogue type
+context. This includes both parent categories (regular discussion) and
+their proposal sub-categories (proposal threads). No dropdown picker
+needed.
 
 A thread in a proposal sub-category is always a proposal thread — the
 category determines the proposal type context, though the `proposal_type`
@@ -54,15 +62,18 @@ Threads are the basic unit of discussion. A thread has:
 - A title and body (body is plain text with reference syntax)
 - An author
 - A category (FK to `categories`)
-- An optional link to a catalogue entry (FK `object_id`) — set when the
+- An optional link to a catalogue entry (FK `entry_id`) — set when the
   thread is explicitly about a known object. The entry detail page lists
   all threads linked this way.
 - A status: `open` or `closed`
+- `is_accepted` boolean — set if the OP's initial post is selected as
+  the approved proposal data (see §1.5).
 - A created-at timestamp
 
-Closing a thread locks it — no new replies. Admins and the thread
-author can close a thread. Any user can close their own thread by
-marking a reply as the solution (see §1.4).
+Closing a thread locks it — no new replies can be posted. Admins and
+the thread author can close a thread. Any user can close their own
+thread by marking a reply as the solution (see §1.4). Approving or
+rejecting a proposal automatically closes the thread.
 
 **Proposal threads** (category = `proposals`) carry extra state:
 - `proposal_type` — `add_entry`, `edit_field`, or `remove_entry`
@@ -72,10 +83,6 @@ marking a reply as the solution (see §1.4).
 - `identified_entry_id` — FK to the catalogue entry identified (set
   when solved)
 
-A thread's open/closed status is independent of its proposal status.
-A proposal can be closed (approved/rejected) while still being open
-for viewing.
-
 ### 1.3 Replies
 
 Replies are a flat list under each thread, in chronological order.
@@ -84,16 +91,19 @@ Each reply has:
 - An author
 - A body (plain text with reference syntax)
 - `is_solution` boolean — set when the OP or an admin marks this
-  reply as the correct answer (identification threads only)
+  reply as the correct answer (identification threads only, or when
+  selected as the approved proposal data)
 - A created-at timestamp
 
-Reply authors can optionally attach structured proposal data (a new
-entry's fields, or a target entry + field change). The form to do so
-appears inline when composing a reply inside the `proposals` category.
-This keeps proposals attached to a specific reply so multiple
+Reply authors (and the OP during thread creation) can optionally
+attach structured proposal data (a new entry's fields, or a target
+entry + field change). The form to do so appears inline when composing
+a reply inside the `proposals` category, and during thread creation
+for the OP. This keeps proposals attached to a specific post so multiple
 participants can suggest different data within the same thread without
 overwriting each other. The data is stored in `proposed_*` tables
-keyed to `reply_id`.
+keyed to `reply_id` (or `thread_id` with a `NULL` `reply_id` if it
+belongs to the OP).
 
 ### 1.4 Marking a solution (identification threads)
 
@@ -128,32 +138,41 @@ a change to the catalogue. Three types:
 - **add_entry** — propose a new object with all its fields
 - **edit_field** — propose changing a specific field on an existing
   entry
-- **remove_entry** — propose soft-deleting an existing entry (with
-  reason)
+- **remove_entry** — propose soft-deleting an existing entry, or
+  reverting a specific incorrect field edit (with reason)
 
 Any user can start a proposal thread. The thread body explains the
-motivation. Then, any participant can reply and attach structured
-proposal data (the full entry for `add_entry`, or target + field for
-`edit_field`/`remove_entry`). Each reply carries its own proposal
-data, so multiple people can propose different values and the thread
-preserves the full history.
+motivation. Then, any participant (including the OP during thread
+creation) can attach structured proposal data (the full entry for
+`add_entry`, or target + field for `edit_field`/`remove_entry`).
+Each post carries its own proposal data, so multiple people can
+propose different values and the thread preserves the full history.
 
 **Review process:**
 - A proposal is `pending` on creation
 - Expert, verified, and admin users see "Approve" and "Reject"
   buttons at the top of the thread
-- On approval, the reviewer selects **which reply's data** to apply
-  via a simple dropdown. Only that reply's `proposed_*` rows are
-  applied to the catalogue and written to `entry_edits`. The selected
-  reply gets `is_solution = 1`.
+- On approval, the reviewer selects **which post's data** to apply
+  via a simple dropdown. If a reply is selected, its `proposed_*`
+  rows are applied and it gets `is_solution = 1`. If the OP's initial
+  post is selected, the thread gets `is_accepted = 1` and its
+  `proposed_*` rows (where `reply_id` is NULL) are applied.
+- The selected data is written to `entry_edits`.
 - Rejection sets the thread to `rejected`; no catalogue changes
 - Moderators can leave a reply explaining their decision
+- Both approval and rejection automatically close the thread to
+  further replies.
 
 **For remove_entry:** only verified and admin users can approve a
-removal, since it is a destructive action. When approved, the
-entry's status is set to `deleted` (data is never actually removed).
-If the target was created by an edit, the field reverts to its
-previous value.
+removal, since it is a destructive action. When approved, the effect
+depends on what is being reverted:
+- If the target was a specific **edit** (identified via `target_field`
+  in `proposed_removals`), the system looks up the most recent valid
+  value for that field prior to the bad edit, reverts the field on
+  the `objects` table, and logs the reversal in `entry_edits`.
+- If the target was an **entry creation**, the entry's `status` is
+  set to `deleted` (data is never actually removed), hiding it from
+  the public catalogue while preserving every audit record.
 
 ### 1.6 Reference syntax
 
@@ -168,7 +187,9 @@ clickable links:
 | `@reply:123`          | A specific reply in any thread    |
 
 All output is HTML-escaped. The reference parser runs after
-`htmlspecialchars()` to prevent injection through the syntax.
+`htmlspecialchars()` to prevent injection through the syntax. The
+username parser uses a whitespace/start-of-string boundary to avoid
+matching email addresses.
 
 ### 1.7 Closed threads
 
@@ -230,10 +251,18 @@ applied) − proposals that were later removed (counted per row in a
 remove_entry that targeted one of this user's contributions). When net
 score reaches 5, the user is promoted to `expert`. Recalculated
 whenever a proposal is approved, rejected, or applied as a removal.
-Implementation note: ensure indexes exist on `replies(is_solution)`
-and `replies(author_id)` — the score queries join `proposed_*` tables
-to `replies` on `reply_id` filtering `is_solution = 1`, and `entry_edits`
-to `replies` on `reply_id` for the negative count.
+
+To avoid complex, multi-level SQL traces when calculating the negative
+score, `entry_edits` includes a denormalized `target_author_id` column.
+When a `remove_entry` proposal is approved, the system looks up the
+author of the original contribution being reverted and stores their ID
+in `target_author_id`. The negative score query is then a fast, indexed
+lookup: `SELECT COUNT(*) FROM entry_edits WHERE action = 'removed' AND target_author_id = ?`.
+
+Similarly, the positive score query counts applied `proposed_*` rows
+where the author is the user, checking either `threads.is_accepted = 1`
+(for OP proposals) or `replies.is_solution = 1` (for reply proposals).
+Ensure indexes exist on `threads(is_accepted)` and `replies(is_solution)`.
 
 ### 2.7 Auto-demotion
 
@@ -293,14 +322,11 @@ Coordinates are stored as J2000 sexagesimal strings, matching the
 astronomical convention used by SIMBAD and OpenNGC. `distance_ly`
 uses `DECIMAL(12,3)`, supporting values up to 999 billion light-years.
 
-### 3.2 Category entry-type inheritance
+### 3.2 Category entry-type mapping
 
-Each category stores its `entry_type` in the `categories` table.
-Child (proposal) categories copy their parent's `entry_type` at
-creation time — denormalized for query performance, so the sidebar
-filters identically without needing recursive queries. The mapping
-determines which catalogue entries appear in the sidebar when browsing
-that category:
+Each category maps to one or more entry types via the `category_entry_types`
+junction table. Child (proposal) categories copy their parent's mapped
+entry types at creation time. 
 
 | Category              | entry_type value(s)                                      |
 |-----------------------|----------------------------------------------------------|
@@ -311,8 +337,8 @@ that category:
 | `solar-system`        | planet, dwarf_planet, moon, asteroid, comet              |
 | `deep-sky`            | anything not matched above                               |
 
-Proposal sub-categories use the same `entry_type` as their parent,
-so the sidebar filters identically.
+Proposal sub-categories use the same entry types as their parent,
+so the sidebar filters identically. 
 
 Entries with `status = 'deleted'` are excluded from listings but
 their data is preserved for audit.
@@ -322,8 +348,10 @@ their data is preserved for audit.
 Every change to a catalogue entry is recorded row by row in
 `entry_edits`. Each row records:
 
-- The source proposal thread and reply
+- The source proposal thread and reply (if applicable)
 - The reviewer who approved it
+- The target author (the original contributor whose work is being
+  affected, used for fast auto-promotion negative-score lookups)
 - The action: `created`, `edited`, or `removed`
 - The field name, old value, and new value
 
@@ -341,16 +369,17 @@ optionally to a specific reply:
 - **`proposed_entries`** — mirrors the `objects` table; holds the
   full record for an `add_entry` proposal
 - **`proposed_field_edits`** — one row per field being changed in
-  an `edit_field` proposal; stores object_id, field, old_value,
+  an `edit_field` proposal; stores entry_id, field, old_value,
   new_value
 - **`proposed_removals`** — one row per target entry in a
-  `remove_entry` proposal; stores object_id and reason
+  `remove_entry` proposal; stores entry_id, target_field (if reverting
+  a specific edit), and reason
 
 These tables do not carry their own status — the thread's
 `proposal_status` determines whether the data is pending, applied,
 or rejected. When a proposal is approved, the rows linked to the
-thread are applied; rows linked to non-accepted replies within the
-same thread are ignored.
+accepted post (either OP or a specific reply) are applied; rows
+linked to non-accepted posts within the same thread are ignored.
 
 ---
 
@@ -389,26 +418,22 @@ CREATE TABLE categories (
   name          VARCHAR(64) NOT NULL,
   slug          VARCHAR(64) NOT NULL UNIQUE,
   description   VARCHAR(255) NULL,
-  entry_type    VARCHAR(64) NULL COMMENT 'maps to objects.entry_type, inherited by children',
   sort_order    INT UNSIGNED NOT NULL DEFAULT 0,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
 );
+```
 
--- Seed rows (parent categories first, then children):
--- ('General',             NULL,   'general',           NULL,    1),
--- ('Help Identifying',    NULL,   'identifications',   NULL,    2),
--- ('Stars',               NULL,   'stars',             'star',  3),
--- ('Stars — Proposals',   3,      'stars-proposals',   'star',  4),
--- ('Nebulae & Clusters',  NULL,   'nebulae-clusters',  'nebula',5),
--- ('Nebulae — Proposals', 5,      'nebulae-proposals', 'nebula',6),
--- ('Galaxies',            NULL,   'galaxies',          'galaxy',7),
--- ('Galaxies — Proposals',7,      'galaxy-proposals',  'galaxy',8),
--- ('Solar System',        NULL,   'solar-system',      'planet',9),
--- ('Solar System — Proposals',9,  'solar-proposals',   'planet',10),
--- ('Deep Sky',            NULL,   'deep-sky',          NULL,    11),
--- ('Deep Sky — Proposals',11,     'deep-sky-proposals',NULL,    12);
+**category_entry_types** (Junction table for 1:N category mappings)
+```sql
+CREATE TABLE category_entry_types (
+  category_id  INT UNSIGNED NOT NULL,
+  entry_type   VARCHAR(64) NOT NULL,
+  PRIMARY KEY (category_id, entry_type),
+
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+);
 ```
 
 **users**
@@ -424,9 +449,9 @@ CREATE TABLE users (
 );
 ```
 
-**replies** (replaces `comments`) — created before `threads` to resolve
-the circular FK dependency; `replies.thread_id` FK is added via ALTER
-TABLE after threads exist.
+**replies** — created before `threads` to resolve the circular FK
+dependency; `replies.thread_id` FK is added via ALTER TABLE after
+threads exist.
 ```sql
 CREATE TABLE replies (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -440,7 +465,7 @@ CREATE TABLE replies (
 );
 ```
 
-**threads** (replaces `discussions`)
+**threads**
 ```sql
 CREATE TABLE threads (
   id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -450,6 +475,7 @@ CREATE TABLE threads (
   author_id             INT UNSIGNED NOT NULL,
   entry_id              INT UNSIGNED NULL COMMENT 'direct link to a catalogue entry',
   status                ENUM('open','closed') NOT NULL DEFAULT 'open',
+  is_accepted           BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'True if OP proposal data was approved',
 
   -- Proposal columns (NULL for non-proposal threads)
   proposal_type         ENUM('add_entry','edit_field','remove_entry') NULL,
@@ -482,12 +508,12 @@ CREATE TABLE threads (
 -- ALTER TABLE threads     ADD FOREIGN KEY (parent_reply_id) REFERENCES replies(id) ON DELETE SET NULL;
 ```
 
-**proposed_entries** (replaces `proposed_objects`)
+**proposed_entries**
 ```sql
 CREATE TABLE proposed_entries (
   id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   thread_id           INT UNSIGNED NOT NULL,
-  reply_id            INT UNSIGNED NULL,
+  reply_id            INT UNSIGNED NULL COMMENT 'NULL if data belongs to OP',
   author_id           INT UNSIGNED NOT NULL,
   name                VARCHAR(255) NOT NULL,
   catalog_id          VARCHAR(64) NULL,
@@ -508,12 +534,12 @@ CREATE TABLE proposed_entries (
 );
 ```
 
-**proposed_field_edits** (replaces `proposed_edits`)
+**proposed_field_edits**
 ```sql
 CREATE TABLE proposed_field_edits (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   thread_id       INT UNSIGNED NOT NULL,
-  reply_id        INT UNSIGNED NULL,
+  reply_id        INT UNSIGNED NULL COMMENT 'NULL if data belongs to OP',
   entry_id        INT UNSIGNED NOT NULL,
   author_id       INT UNSIGNED NOT NULL,
   field           VARCHAR(64) NOT NULL,
@@ -523,36 +549,38 @@ CREATE TABLE proposed_field_edits (
 
   FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
   FOREIGN KEY (reply_id)  REFERENCES replies(id) ON DELETE CASCADE,
-  FOREIGN KEY (entry_id)  REFERENCES objects(id) ON DELETE CASCADE,
+  FOREIGN KEY (entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (author_id) REFERENCES users(id)
 );
 ```
 
-**proposed_removals** (replaces `proposed_marks`)
+**proposed_removals**
 ```sql
 CREATE TABLE proposed_removals (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   thread_id       INT UNSIGNED NOT NULL,
-  reply_id        INT UNSIGNED NULL,
+  reply_id        INT UNSIGNED NULL COMMENT 'NULL if data belongs to OP',
   entry_id        INT UNSIGNED NOT NULL,
+  target_field    VARCHAR(64) NULL COMMENT 'Specific field being reverted (NULL if removing whole entry)',
   author_id       INT UNSIGNED NOT NULL,
   reason          TEXT NOT NULL,
   created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
   FOREIGN KEY (reply_id)  REFERENCES replies(id) ON DELETE CASCADE,
-  FOREIGN KEY (entry_id)  REFERENCES objects(id) ON DELETE CASCADE,
+  FOREIGN KEY (entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (author_id) REFERENCES users(id)
 );
 ```
 
-**entry_edits** (replaces `object_edits`)
+**entry_edits**
 ```sql
 CREATE TABLE entry_edits (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   entry_id        INT UNSIGNED NOT NULL,
   thread_id       INT UNSIGNED NOT NULL,
   reply_id        INT UNSIGNED NULL,
+  target_author_id INT UNSIGNED NULL COMMENT 'Original author being reverted, for fast demotion queries',
   action          ENUM('created','edited','removed') NOT NULL,
   field           VARCHAR(64) NULL,
   old_value       VARCHAR(255) NULL,
@@ -560,11 +588,15 @@ CREATE TABLE entry_edits (
   reviewer_id     INT UNSIGNED NOT NULL,
   created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-  FOREIGN KEY (entry_id)    REFERENCES objects(id) ON DELETE CASCADE,
-  FOREIGN KEY (thread_id)   REFERENCES threads(id) ON DELETE CASCADE,
-  FOREIGN KEY (reply_id)    REFERENCES replies(id) ON DELETE SET NULL,
-  FOREIGN KEY (reviewer_id) REFERENCES users(id)
+  FOREIGN KEY (entry_id)          REFERENCES objects(id) ON DELETE SET NULL,
+  FOREIGN KEY (thread_id)         REFERENCES threads(id) ON DELETE CASCADE,
+  FOREIGN KEY (reply_id)          REFERENCES replies(id) ON DELETE SET NULL,
+  FOREIGN KEY (target_author_id)  REFERENCES users(id),
+  FOREIGN KEY (reviewer_id)       REFERENCES users(id)
 );
+
+-- Index for auto-demotion queries
+CREATE INDEX idx_entry_edits_target_author ON entry_edits (target_author_id, action);
 ```
 
 Row conventions:
@@ -641,16 +673,17 @@ htdocs/
 ### 5.2 Key differences from a plain-thread forum
 
 1. **Category hierarchy encodes object type.** The `category.php` page
-   uses the category's `entry_type` (inherited from parent for proposal
-   sub-categories) to filter the catalogue sidebar, showing only entries
+   uses the category's mapped `entry_type`s via the `category_entry_types`
+   junction table to filter the catalogue sidebar, showing only entries
    relevant to the current category. Proposal sub-categories sit under
    their parent in the nav tree.
 
-2. **Replies can carry structured proposal data.** When composing a
-   reply inside the `proposals` category, a form appears below the
-   textarea for attaching entry fields, a target + field name for
-   edits, or a target + reason for removals. This data is stored in
-   the `proposed_*` tables keyed to `reply_id`, so multiple replies
+2. **Posts can carry structured proposal data.** When composing a
+   reply inside the `proposals` category, or creating the thread itself,
+   a form appears below the textarea for attaching entry fields, a
+   target + field name for edits, or a target + reason for removals.
+   This data is stored in the `proposed_*` tables keyed to `reply_id`
+   (or `thread_id` with `NULL` `reply_id` for OP), so multiple posts
    can carry different proposals within the same thread.
 
 3. **Solution marking on identifications is thread-level.** The OP
@@ -660,10 +693,12 @@ htdocs/
    create a proposal thread.
 
 4. **Approve/Reject on proposals is thread-level, but data is
-   per-reply.** Experts see Approve/Reject buttons at the top of the
-   thread. On approval, a dropdown lets them pick which reply's data
-   to apply. Only that reply's `proposed_*` rows are written to the
-   catalogue and `entry_edits`.
+   per-post.** Experts see Approve/Reject buttons at the top of the
+   thread. On approval, a dropdown lets them pick which post's data
+   to apply (OP or a specific reply). Only that post's `proposed_*`
+   rows are written to the catalogue and `entry_edits`. The chosen
+   post gets `is_accepted = 1` (if OP) or `is_solution = 1` (if reply).
+   Both approval and rejection automatically close the thread.
 
 ### 5.3 Reference syntax implementation
 
@@ -676,16 +711,22 @@ The render function processes post body in this order:
 function render_body(PDO $pdo, string $text): string
 {
     $text = h($text);
-    $text = preg_replace('/@([A-Za-z0-9_]+)/',
+    
+    // Matches @username only if preceded by start of string or whitespace
+    $text = preg_replace('/(?<=\s|^)@(?!entry:|thread:|reply:)([A-Za-z0-9_]+)/',
         '<a href="profile.php?username=$1">@$1</a>', $text);
+        
     $text = preg_replace_callback('/@entry:([^\s<>]+)/',
         function($m) {
             return '<a href="entry.php?q=' . urlencode($m[1]) . '">@entry:' . $m[1] . '</a>';
         }, $text);
+        
     $text = preg_replace('/@thread:(\d+)/',
         '<a href="thread.php?id=$1">@thread:$1</a>', $text);
+        
     $text = preg_replace('/@reply:(\d+)/',
         '<a href="thread.php?rid=$1#reply-$1">@reply:$1</a>', $text);
+        
     return nl2br($text, false);
 }
 ```
