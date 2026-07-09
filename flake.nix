@@ -17,7 +17,6 @@
 
           packages = [
             pkgs.mariadb       # MySQL-compatible server + client
-            pkgs.python3       # for loader scripts / tooling
             pkgs.openssh       # ssh client for Git over SSH
           ];
 
