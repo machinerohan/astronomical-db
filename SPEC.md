@@ -13,10 +13,10 @@ through community effort with expert oversight.
 
 ### 1.1 Account creation
 
-Users register with a username and a bcrypt-hashed password. Admins can also
-create accounts and set an initial password — for example a random one shown
-to the admin once, to share with the new user out of band. Every user changes
-their own password through the normal password-change feature at any time.
+Only admins can create accounts. The admin sets an initial password — for
+example a random one shown to the admin once, to share with the new user out
+of band. Every user changes their own password through the normal
+password-change feature at any time.
 
 ### 1.2 Roles
 
