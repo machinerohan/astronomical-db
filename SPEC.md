@@ -11,32 +11,41 @@ to the catalogue itself.
 
 ### 1.1 Categories (sub-forums)
 
-Every thread lives in exactly one category. Categories are hierarchical
-and map directly to astronomical object types:
+Every thread lives in exactly one category. Categories form a
+two-level hierarchy: top-level categories (`general`, `identifications`,
+and object-type groups) each have a child `proposals` sub-category.
 
-| Category slug       | Description                                                |
-|---------------------|------------------------------------------------------------|
-| `general`           | Anything not covered below                                 |
-| `stars`             | Stars, binary/multiple systems, variable stars             |
-| `nebulae-clusters`  | Emission/reflection/dark nebulae, open/globular clusters   |
-| `galaxies`          | Spiral, elliptical, irregular galaxies, quasars            |
-| `solar-system`      | Planets, moons, asteroids, comets, dwarf planets           |
-| `deep-sky`          | Other deep-sky objects not fitting the above               |
-| `identifications`   | "What is this?" — post images/descriptions of unknowns     |
-| `proposals`         | Suggest adding, editing, or removing catalogue entries     |
+| Category                  | Slug                 | Parent   | Entry type                     |
+|---------------------------|----------------------|----------|--------------------------------|
+| General                   | `general`            | NULL     | NULL                           |
+| Help Identifying          | `identifications`    | NULL     | NULL                           |
+| Stars                     | `stars`              | NULL     | star                           |
+| ├ Stars — Proposals       | `stars-proposals`    | `stars`  | star                           |
+| Nebulae & Clusters        | `nebulae-clusters`   | NULL     | nebula, cluster, etc.          |
+| ├ Nebulae — Proposals     | `nebulae-proposals`  | `nebulae-clusters` | nebula, cluster, etc.|
+| Galaxies                  | `galaxies`           | NULL     | galaxy, quasar                 |
+| ├ Galaxies — Proposals    | `galaxies-proposals` | `galaxies` | galaxy, quasar               |
+| Solar System              | `solar-system`       | NULL     | planet, moon, asteroid, comet  |
+| ├ Solar System — Proposals| `solar-proposals`    | `solar-system` | planet, moon, etc.       |
+| Deep Sky                  | `deep-sky`           | NULL     | anything not matched above     |
+| ├ Deep Sky — Proposals    | `deep-sky-proposals` | `deep-sky` | anything not matched above   |
 
-Categories are stored in a `categories` table and rendered as the
-primary navigation. The listing on the index page shows each category
-with the count of recent threads inside it (standard forum index
-pattern).
+Categories are stored in a `categories` table with a self-referencing
+`parent_id` FK. The index page renders parent categories with their
+child sub-categories indented beneath them (standard forum index
+pattern), each showing its unread/recent thread count.
 
-When a thread is created in `stars`, `nebulae-clusters`, `galaxies`,
-`solar-system`, or `deep-sky`, the system automatically links the thread
-to the catalogue type matching that category. No dropdown picker needed.
+When a thread is created in a category that has an `entry_type`, the
+system automatically links the thread to that catalogue type. This
+includes both parent categories (regular discussion) and their proposal
+sub-categories (proposal threads). No dropdown picker needed.
 
-New categories can be added by an admin; the association with an object
-type is optional — `general`, `identifications`, and `proposals` have
-no catalogue type backing.
+A thread in a proposal sub-category is always a proposal thread — the
+category determines the proposal type context, though the `proposal_type`
+column on the thread disambiguates between `add_entry`, `edit_field`,
+and `remove_entry`.
+
+New top-level categories and sub-categories can be added by an admin.
 
 ### 1.2 Threads
 
@@ -113,8 +122,8 @@ offers to create a proposal thread.
 
 ### 1.5 Proposals (catalogue changes)
 
-A thread in the `proposals` category suggests a change to the
-catalogue. Three types:
+A thread in a proposal sub-category (e.g. `stars-proposals`) suggests
+a change to the catalogue. Three types:
 
 - **add_entry** — propose a new object with all its fields
 - **edit_field** — propose changing a specific field on an existing
@@ -280,19 +289,24 @@ Coordinates are stored as J2000 sexagesimal strings, matching the
 astronomical convention used by SIMBAD and OpenNGC. `distance_ly`
 uses `DECIMAL(12,3)`, supporting values up to 999 billion light-years.
 
-### 3.2 Category → type mapping
+### 3.2 Category entry-type inheritance
 
-When a thread is created in a category that maps to an object type,
-all catalogue entries of that type are listed in a sidebar for easy
-referencing. The mapping is:
+Each category inherits its `entry_type` from the `categories` table.
+Child (proposal) categories automatically inherit their parent's type.
+The mapping determines which catalogue entries appear in the sidebar
+when browsing that category:
 
-| Category slug    | entry_type value(s)                          |
-|------------------|----------------------------------------------|
-| `stars`          | star                                         |
-| `nebulae-clusters` | nebula, emission_nebula, reflection_nebula, planetary_nebula, open_cluster, globular_cluster |
-| `galaxies`       | galaxy, quasar                               |
-| `solar-system`   | planet, dwarf_planet, moon, asteroid, comet  |
-| `deep-sky`       | anything not matched above                   |
+| Category              | entry_type value(s)                                      |
+|-----------------------|----------------------------------------------------------|
+| `stars`               | star                                                     |
+| `nebulae-clusters`    | nebula, emission_nebula, reflection_nebula,               |
+|                       | planetary_nebula, open_cluster, globular_cluster          |
+| `galaxies`            | galaxy, quasar                                           |
+| `solar-system`        | planet, dwarf_planet, moon, asteroid, comet              |
+| `deep-sky`            | anything not matched above                               |
+
+Proposal sub-categories use the same `entry_type` as their parent,
+so the sidebar filters identically.
 
 Entries with `status = 'deleted'` are excluded from listings but
 their data is preserved for audit.
@@ -365,23 +379,30 @@ CREATE TABLE objects (
 ```sql
 CREATE TABLE categories (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  parent_id     INT UNSIGNED NULL,
   name          VARCHAR(64) NOT NULL,
   slug          VARCHAR(64) NOT NULL UNIQUE,
   description   VARCHAR(255) NULL,
-  entry_type    VARCHAR(64) NULL COMMENT 'maps to objects.entry_type',
+  entry_type    VARCHAR(64) NULL COMMENT 'maps to objects.entry_type, inherited by children',
   sort_order    INT UNSIGNED NOT NULL DEFAULT 0,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
 );
 
--- Seed rows:
--- ('General',           'general',           NULL,   1),
--- ('Stars',             'stars',             'star', 2),
--- ('Nebulae & Clusters','nebulae-clusters',  'nebula',3),
--- ('Galaxies',          'galaxies',          'galaxy',4),
--- ('Solar System',      'solar-system',      'planet',5),
--- ('Deep Sky',          'deep-sky',          NULL,   6),
--- ('Help Identifying',  'identifications',   NULL,   7),
--- ('Catalogue Proposals','proposals',        NULL,   8);
+-- Seed rows (parent categories first, then children):
+-- ('General',             NULL,   'general',           NULL,    1),
+-- ('Help Identifying',    NULL,   'identifications',   NULL,    2),
+-- ('Stars',               NULL,   'stars',             'star',  3),
+-- ('Stars — Proposals',   3,      'stars-proposals',   'star',  4),
+-- ('Nebulae & Clusters',  NULL,   'nebulae-clusters',  'nebula',5),
+-- ('Nebulae — Proposals', 5,      'nebulae-proposals', 'nebula',6),
+-- ('Galaxies',            NULL,   'galaxies',          'galaxy',7),
+-- ('Galaxies — Proposals',7,      'galaxy-proposals',  'galaxy',8),
+-- ('Solar System',        NULL,   'solar-system',      'planet',9),
+-- ('Solar System — Proposals',9,  'solar-proposals',   'planet',10),
+-- ('Deep Sky',            NULL,   'deep-sky',          NULL,    11),
+-- ('Deep Sky — Proposals',11,     'deep-sky-proposals',NULL,    12);
 ```
 
 **users**
@@ -609,9 +630,11 @@ htdocs/
 
 ### 5.2 Key differences from a plain-thread forum
 
-1. **Category slug encodes object type.** The `category.php` page uses
-   `categories.entry_type` to filter the catalogue sidebar, showing
-   only entries relevant to the current category.
+1. **Category hierarchy encodes object type.** The `category.php` page
+   uses the category's `entry_type` (inherited from parent for proposal
+   sub-categories) to filter the catalogue sidebar, showing only entries
+   relevant to the current category. Proposal sub-categories sit under
+   their parent in the nav tree.
 
 2. **Replies can carry structured proposal data.** When composing a
    reply inside the `proposals` category, a form appears below the
