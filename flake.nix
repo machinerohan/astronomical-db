@@ -17,7 +17,6 @@
 
           packages = [
             pkgs.mariadb       # MySQL-compatible server + client
-            pkgs.openssh       # ssh client for Git over SSH
           ];
 
           shellHook = ''
