@@ -230,6 +230,10 @@ applied) − proposals that were later removed (counted per row in a
 remove_entry that targeted one of this user's contributions). When net
 score reaches 5, the user is promoted to `expert`. Recalculated
 whenever a proposal is approved, rejected, or applied as a removal.
+Implementation note: ensure indexes exist on `replies(is_solution)`
+and `replies(author_id)` — the score queries join `proposed_*` tables
+to `replies` on `reply_id` filtering `is_solution = 1`, and `entry_edits`
+to `replies` on `reply_id` for the negative count.
 
 ### 2.7 Auto-demotion
 
@@ -291,10 +295,12 @@ uses `DECIMAL(12,3)`, supporting values up to 999 billion light-years.
 
 ### 3.2 Category entry-type inheritance
 
-Each category inherits its `entry_type` from the `categories` table.
-Child (proposal) categories automatically inherit their parent's type.
-The mapping determines which catalogue entries appear in the sidebar
-when browsing that category:
+Each category stores its `entry_type` in the `categories` table.
+Child (proposal) categories copy their parent's `entry_type` at
+creation time — denormalized for query performance, so the sidebar
+filters identically without needing recursive queries. The mapping
+determines which catalogue entries appear in the sidebar when browsing
+that category:
 
 | Category              | entry_type value(s)                                      |
 |-----------------------|----------------------------------------------------------|
@@ -418,6 +424,22 @@ CREATE TABLE users (
 );
 ```
 
+**replies** (replaces `comments`) — created before `threads` to resolve
+the circular FK dependency; `replies.thread_id` FK is added via ALTER
+TABLE after threads exist.
+```sql
+CREATE TABLE replies (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  thread_id       INT UNSIGNED NOT NULL,
+  body            TEXT NOT NULL,
+  author_id       INT UNSIGNED NOT NULL,
+  is_solution     BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (author_id) REFERENCES users(id)
+);
+```
+
 **threads** (replaces `discussions`)
 ```sql
 CREATE TABLE threads (
@@ -452,24 +474,12 @@ CREATE TABLE threads (
   FOREIGN KEY (entry_id)             REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (reviewer_id)          REFERENCES users(id),
   FOREIGN KEY (identified_entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_reply_id)      REFERENCES replies(id) ON DELETE SET NULL,
   FOREIGN KEY (closed_by)            REFERENCES users(id)
 );
-```
 
-**replies** (replaces `comments`)
-```sql
-CREATE TABLE replies (
-  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  thread_id       INT UNSIGNED NOT NULL,
-  body            TEXT NOT NULL,
-  author_id       INT UNSIGNED NOT NULL,
-  is_solution     BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
-  FOREIGN KEY (author_id) REFERENCES users(id)
-);
+-- Circular FK added after both tables exist:
+-- ALTER TABLE replies     ADD FOREIGN KEY (thread_id)      REFERENCES threads(id) ON DELETE CASCADE;
+-- ALTER TABLE threads     ADD FOREIGN KEY (parent_reply_id) REFERENCES replies(id) ON DELETE SET NULL;
 ```
 
 **proposed_entries** (replaces `proposed_objects`)
@@ -668,8 +678,10 @@ function render_body(PDO $pdo, string $text): string
     $text = h($text);
     $text = preg_replace('/@([A-Za-z0-9_]+)/',
         '<a href="profile.php?username=$1">@$1</a>', $text);
-    $text = preg_replace('/@entry:([^\s<>]+)/',
-        '<a href="entry.php?name=$1">@entry:$1</a>', $text);
+    $text = preg_replace_callback('/@entry:([^\s<>]+)/',
+        function($m) {
+            return '<a href="entry.php?q=' . urlencode($m[1]) . '">@entry:' . $m[1] . '</a>';
+        }, $text);
     $text = preg_replace('/@thread:(\d+)/',
         '<a href="thread.php?id=$1">@thread:$1</a>', $text);
     $text = preg_replace('/@reply:(\d+)/',
