@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS objects (
   id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name            VARCHAR(255) NOT NULL,
   catalog_id      VARCHAR(64)  NULL,
-  object_type     VARCHAR(64) NOT NULL,
+  entry_type      VARCHAR(64) NOT NULL,
   right_ascension VARCHAR(16)  NULL,
   declination     VARCHAR(16)  NULL,
   apparent_mag    DECIMAL(6,3) NULL COMMENT 'apparent magnitude',
@@ -25,6 +25,6 @@ CREATE TABLE IF NOT EXISTS objects (
   updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_catalog (catalog_id),
-  KEY idx_type (object_type),
+  KEY idx_type (entry_type),
   KEY idx_constellation (constellation)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

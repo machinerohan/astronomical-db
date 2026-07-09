@@ -1,41 +1,58 @@
-# Astronomical Objects Database
+# AstroForum
 
-MySQL/MariaDB database of astronomical objects (stars, galaxies, nebulae, planets).
+Astronomy discussion forum with a community-curated catalogue of celestial objects.
+Standard forum structure (categories → threads → replies) with nested proposal
+sub-categories and structured catalogue-change proposals attached to replies.
 
-## Setup
-
-### Windows — XAMPP
-
-1. Install [XAMPP](https://www.apachefriends.org/), start **Apache** and **MySQL**.
-2. From the XAMPP shell:
-
-```batch
-mysql -u root < db\schema.sql
-mysql -u root < db\seed.sql
-```
-
-The `astronomical_db` database is now ready with the `objects` table and sample data.
+## Quick Start
 
 ### Linux — Nix
 
 ```bash
 nix develop
 
-# First time: loads schema
+# Terminal 1: Start MariaDB
+mysqld &
+
+# Terminal 2: Load schema and seed data
 mysql < db/schema.sql
 mysql < db/seed.sql
+mysql < htdocs/schema-forum.sql
+mysql < htdocs/schema-forum-seed.sql
 
-# Or start the server manually and connect:
-mysqld &                          # start in background
-mysql                             # connect (uses project socket)
-mysqladmin shutdown               # stop the server
+# Start PHP dev server
+php -S localhost:8080 -t htdocs/
 ```
 
-The Nix shell provides `mysql`, `mysqld`, and `mysqladmin` pre-configured
-with a local data directory (`.mysql-data/`).
+Visit http://localhost:8080/
 
-## Schema
+### Windows — XAMPP
 
-Run `db/schema.sql` to create the `objects` table with columns for name,
-catalog ID, object type, coordinates, magnitude, constellation, distance,
-discovery details, and notes.
+1. Install XAMPP, start **Apache** and **MySQL**
+2. From the XAMPP shell:
+
+```batch
+mysql -u root < db\schema.sql
+mysql -u root < db\seed.sql
+mysql -u root < htdocs\schema-forum.sql
+mysql -u root < htdocs\schema-forum-seed.sql
+```
+
+3. Copy `htdocs/` into `C:\xampp\htdocs\astroforum\`
+4. Visit http://localhost/astroforum/
+
+## Default Accounts
+
+| Username | Password   | Role  | Expertise |
+|----------|------------|-------|-----------|
+| `admin`  | `admin`    | admin | verified  |
+| `alice`  | `password` | member| normal    |
+
+## Reference Syntax
+
+| Syntax          | Links to                     |
+|-----------------|------------------------------|
+| `@username`     | User profile                 |
+| `@entry:Sirius` | Catalogue entry              |
+| `@thread:42`    | Another thread               |
+| `@reply:123`    | A specific reply             |
