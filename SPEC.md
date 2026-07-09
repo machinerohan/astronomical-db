@@ -43,8 +43,8 @@ their profile.
 ### 1.3 Verification notes
 
 When granting verified status, an admin may attach a private note (e.g.,
-"confirmed astronomer — checked LinkedIn"). These notes are visible to
-admins only.
+"confirmed astronomer — checked LinkedIn"). These notes are stored in a
+separate `user_verifications` table and are visible to admins only.
 
 ### 1.4 Profile page
 
@@ -87,9 +87,12 @@ potentially new object.
   When the answer matches an existing catalogue object, the discussion links to
   that object through `identified_object_id`.
 - When the answer points to a brand-new object, a **proposal** for that object
-  is created with its `parent_discussion_id` set to the identification
-  discussion. The chain identification → proposal → catalogue entry stays
-  visible on the object's page.
+  is created with its `parent_discussion_id` set to this identification, and
+  the system prompts the accepted comment's author (or the OP) to fill out the
+  full object form as a `proposed_objects` row within the new proposal.
+  `identified_object_id` stays `NULL` on this identification until that
+  proposal is approved and the object exists, at which point the system sets
+  `identified_object_id` to the newly created object.
 - When no answer is found, the OP (or an admin) closes the discussion.
 
 Resolved identifications appear on the identified object's page.
@@ -117,9 +120,19 @@ approve or reject any pending proposal, including their own.
 Approval selects one comment as the resolution. The proposed-data rows linked
 to that comment are applied to the catalogue: a `proposed_objects` row becomes
 a new object, `proposed_edits` rows update the target object's fields, and a
-`proposed_marks` row applies the correction and reduces the original author's
-net score. The discussion moves to `approved`, the chosen comment is marked
-`is_accepted`, and the change is written to the object's edit history.
+`proposed_marks` row applies the correction. The discussion moves to
+`approved`, the chosen comment is marked `is_accepted`, and the change is
+written to the object's edit history. Because the discussion-level approval
+determines which proposed-data rows are applied, `proposed_objects`,
+`proposed_edits`, and `proposed_marks` do not carry their own status column.
+
+**Mark-as-bad reversal mechanics.** When a mark-as-bad proposal is approved,
+the effect depends on what is being reverted:
+- If the target was an **edit**, the affected field on the `objects` table
+  reverts to its `old_value`.
+- If the target was an **object creation**, the object's `status` is set to
+  `deleted`, hiding it from the public catalogue while preserving every audit
+  record.
 
 Any user can submit a mark-as-bad proposal, but only verified and admin users
 can approve one.
@@ -146,7 +159,9 @@ Discussion bodies and comments are rendered with clickable references:
 | `@discussion:42` | Discussion thread |
 | `@comment:123` | Specific comment |
 
-All output is HTML-escaped for safety.
+All output is HTML-escaped for safety. The reference parser runs after
+`htmlspecialchars()` on the raw text to prevent HTML injection through the
+reference syntax.
 
 ---
 
@@ -156,9 +171,12 @@ All output is HTML-escaped for safety.
 
 The catalogue stores astronomical objects with fields for name, catalog ID,
 object type, right ascension, declination, magnitude, constellation, distance,
-discoverer, discovery year, and notes. Coordinates are stored as J2000
-sexagesimal strings (e.g. `06:45:08.9`, `-16:42:58`), matching the
-astronomical convention used by sources such as SIMBAD and OpenNGC.
+discoverer, discovery year, notes, and a `status` indicating whether the object
+is `active` or `deleted`. Coordinates are stored as J2000 sexagesimal strings
+(e.g. `06:45:08.9`, `-16:42:58`), matching the astronomical convention used by
+sources such as SIMBAD and OpenNGC. `distance_ly` uses `DECIMAL(12,3)` which
+supports values up to 999 billion light-years — well past the observable
+universe's ~93 billion light-year diameter.
 
 ### 3.2 Object history
 
@@ -168,10 +186,16 @@ object's complete edit history. Each entry records the source proposal
 the reviewer who approved it (`reviewer_id`), and the change itself
 (`action`, `field`, `old_value`, `new_value`).
 
-The `action` column distinguishes how the object was affected: `created` for the
-proposal that introduced it, `edited` for each approved field change, and
-`marked_bad` for a contribution flagged as incorrect. Creation, edits, and marks
-therefore live in one continuous history.
+All actions use the same per-field row structure:
+- **`created`**: one row per populated field; `old_value` is `NULL`,
+  `new_value` is the initial value.
+- **`edited`**: one row per changed field; `old_value` is the previous value,
+  `new_value` is the proposed value.
+- **`marked_bad` (reverting an edit)**: the `objects` field reverts to its
+  prior value; `old_value` is the bad value, `new_value` is the reverted
+  correct value.
+- **`marked_bad` (reverting a creation)**: one row with `field` set to
+  `status`, `old_value` set to `active`, `new_value` set to `deleted`.
 
 An object's page draws from `object_edits` to show:
 - The proposal that created it.
@@ -207,8 +231,10 @@ proposal discussion and approve it themselves, and the edit is written to
 
 ### 4.2 Auto-promotion
 
-A user's net score is the number of approved proposals minus the number of
-their contributions marked as bad. When it reaches 5, the user is promoted to
+A user's net score is the number of their proposed-data rows (in
+`proposed_objects`, `proposed_edits`, and `proposed_marks`) that have been
+applied via an approved comment, minus the number of their proposed-data rows
+that were later marked as bad. When it reaches 5, the user is promoted to
 expert. Promotion is recalculated whenever a proposal is approved, rejected,
 or marked bad.
 
@@ -219,7 +245,8 @@ they are demoted to normal. They can regain expert status by contributing
 more.
 
 Admins can also manually demote an expert. A manually demoted user cannot be
-re-auto-promoted until an admin clears the restriction.
+re-auto-promoted until an admin clears the restriction. The auto-promotion
+query checks that `admin_demoted_at` is `NULL` before promoting.
 
 ### 4.4 Protected contributions
 
@@ -238,16 +265,18 @@ is captured row by row in `object_edits`.
 
 Three administrative operations are recorded in `admin_actions`: creating a
 user account, manually demoting a user, and granting verified status. Each
-entry records who performed it, the target, and a timestamp.
+entry records who performed it, the target, and a timestamp. Verification notes
+are stored separately in `user_verifications`, which is readable only by
+admins.
 
 ---
 
 ## 6. Database Schema
 
 The catalogue table `objects` is defined in `db/schema.sql`. The forum schema
-in `htdocs/schema-forum.sql` defines eight tables: `users`, `discussions`,
+in `htdocs/schema-forum.sql` defines nine tables: `users`, `discussions`,
 `comments`, `proposed_objects`, `proposed_edits`, `proposed_marks`,
-`object_edits`, and `admin_actions`.
+`object_edits`, `user_verifications`, and `admin_actions`.
 
 ### 6.1 `users`
 
@@ -258,9 +287,6 @@ password            VARCHAR(255) NOT NULL
 role                ENUM('admin','member') DEFAULT 'member'
 expertise           ENUM('normal','expert','verified') DEFAULT 'normal'
 admin_demoted_at    TIMESTAMP NULL
-verified_by_id      INT UNSIGNED NULL
-verified_at         DATETIME NULL
-verification_note   TEXT NULL
 created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
@@ -279,6 +305,7 @@ distance_ly         DECIMAL(12,3) NULL
 discovered_by       VARCHAR(128) NULL
 discovery_year      SMALLINT UNSIGNED NULL
 notes               TEXT NULL
+status              ENUM('active','deleted') DEFAULT 'active'
 created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ```
@@ -349,7 +376,6 @@ distance_ly         DECIMAL(12,3) NULL
 discovered_by       VARCHAR(128) NULL
 discovery_year      SMALLINT UNSIGNED NULL
 notes               TEXT NULL
-status              ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'
 created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
@@ -366,7 +392,6 @@ author_id       INT UNSIGNED NOT NULL
 field           VARCHAR(64) NOT NULL
 old_value       VARCHAR(255) NULL
 new_value       VARCHAR(255) NULL
-status          ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'
 created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
@@ -381,13 +406,12 @@ comment_id      INT UNSIGNED NOT NULL
 object_id       INT UNSIGNED NOT NULL
 author_id       INT UNSIGNED NOT NULL
 reason          TEXT NOT NULL
-status          ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'
 created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
 ### 6.8 `object_edits`
 
-The per-object edit history: one row per applied field change.
+The per-object edit history. Every row records a single field-level change.
 
 ```
 id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
@@ -402,7 +426,29 @@ reviewer_id     INT UNSIGNED NOT NULL
 created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
-### 6.9 `admin_actions`
+Row conventions by action:
+
+| `action` | `field` | `old_value` | `new_value` |
+|---|---|---|---|
+| `created` | The populated column name | `NULL` | The initial value |
+| `edited` | The changed column name | The previous value | The proposed value |
+| `marked_bad` (edit revert) | The reverted column name | The bad value | The reverted correct value |
+| `marked_bad` (creation revert) | `status` | `active` | `deleted` |
+
+### 6.9 `user_verifications`
+
+Records each verification action and its private note. Admins read this table;
+it is not exposed to non-admin users.
+
+```
+id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+user_id         INT UNSIGNED NOT NULL
+verified_by_id  INT UNSIGNED NOT NULL
+note            TEXT NULL
+created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+```
+
+### 6.10 `admin_actions`
 
 ```
 id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
