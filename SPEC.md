@@ -20,8 +20,8 @@ own password.
 
 ### 1.2 Roles
 
-Two independent axes: **role** (site management) and **expertise** (knowledge
-badge).
+Every user has a **role** (site management) and an **expertise** badge
+(knowledge level). The two axes are independent.
 
 **Role:**
 - `admin` — manage users, grant verified status, write verification notes,
@@ -37,8 +37,8 @@ badge).
   by admin after private verification (e.g., confirming professional
   credentials).
 
-An admin may be normal, expert, or verified; the badge is cosmetic for admins
-but visible on their profile.
+An admin carries an expertise badge like any other user; it is visible on
+their profile.
 
 ### 1.3 Verification notes
 
@@ -58,11 +58,17 @@ Each user profile shows:
 
 ## 2. Discussions
 
-All user-generated content is organized as discussions — forum threads,
-identification requests, and catalogue proposals.
+All user-generated content is organized as discussions of three types:
 
-Each discussion has a type, title, body, author, and optional link to a
-catalogue object.
+- **general** — an open conversation, optionally linked to an object
+- **identification** — a request to identify an unknown object
+- **proposal** — a suggested change to the catalogue
+
+Every discussion is either `open` or `closed`. A proposal discussion also
+carries an approval state — `pending`, `approved`, or `rejected` — and a
+resolved identification links directly to the object it identified. Each
+discussion type has exactly the columns it needs, so a proposal's approval
+state and an identification's resolved object never interfere with one another.
 
 ### 2.1 General discussions
 
@@ -77,40 +83,49 @@ referencing a known catalogue object via `@obj:Sirius` or describing a
 potentially new object.
 
 **Resolution:**
-- The original poster can accept any comment as the correct answer. The
-  discussion is marked identified and linked to the catalogue object.
-- If no answer is found, the OP can close the discussion as unknown.
-- Admins can accept a comment or close the discussion on any identification.
+- The original poster (or an admin) accepts a comment as the correct answer.
+  When the answer matches an existing catalogue object, the discussion links to
+  that object through `identified_object_id`.
+- When the answer points to a brand-new object, a **proposal** for that object
+  is created with its `parent_discussion_id` set to the identification
+  discussion. The chain identification → proposal → catalogue entry stays
+  visible on the object's page.
+- When no answer is found, the OP (or an admin) closes the discussion.
 
 Resolved identifications appear on the identified object's page.
 
 ### 2.3 Proposal discussions
 
-Proposals add new objects to the catalogue or suggest changes to existing
-ones. Both follow the same approval process.
+A proposal is a discussion that carries structured change data in
+`proposal_data` (JSON) and moves through an approval workflow. Three kinds of
+proposal exist:
 
 - **New object**: the user fills out the full object form (name, type,
   coordinates, magnitude, etc.).
-- **Edit**: the user specifies a single field change on an existing object
-  (e.g., update distance from 1500 to 1600 ly).
+- **Edit**: the user proposes a change to fields on an existing object.
+- **Mark as bad**: the user flags a previously approved contribution as
+  incorrect, with a reason.
 
-Proposals are created pending review. Expert, verified, and admin users can
+A proposal starts in `pending` state. Expert, verified, and admin users can
 approve or reject any pending proposal, including their own.
 
-Marking a previously approved contribution as incorrect is also a proposal.
-Any user can submit one, but only verified and admin users can approve it.
-When approved, the author's net score decreases and the object history shows
-the correction.
+Any user can submit a mark-as-bad proposal, but only verified and admin users
+can approve one. When approved, the author's net score decreases and the object
+history records the correction.
 
-When a proposal is linked to an identification (because the ID discovered a
-new object), the object page shows the full chain: identification → proposal
-→ catalogue entry.
+While a proposal is `pending`, its author may update `proposal_data` in
+response to the thread's discussion. The data in effect when the proposal is
+approved is the data applied to the catalogue.
+
+When a proposal originates from an identification (because the ID discovered a
+new object), its `parent_discussion_id` points back to the identification
+discussion, so the object page shows the full chain.
 
 ### 2.4 Comments
 
-Discussions support threaded comments. Each comment has an anchor link for
-direct referencing. On identification discussions, a comment can be marked as
-the accepted answer.
+Comments form a single flat list under each discussion. Each comment has an
+anchor link for direct referencing. On identification discussions, one comment
+carries `is_accepted` to mark the accepted answer.
 
 ### 2.5 Reference syntax
 
@@ -133,22 +148,24 @@ All output is HTML-escaped for safety.
 
 The catalogue stores astronomical objects with fields for name, catalog ID,
 object type, right ascension, declination, magnitude, constellation, distance,
-discoverer, discovery year, and notes.
+discoverer, discovery year, and notes. Coordinates are stored as J2000
+sexagesimal strings (e.g. `06:45:08.9`, `-16:42:58`), matching the
+astronomical convention used by sources such as SIMBAD and OpenNGC.
 
 ### 3.2 Object history
 
 Each object's page shows how its data was assembled:
 - The proposal that created it.
 - Every approved edit that changed it.
-- Every resolved identification linked to it.
+- Every resolved identification linked to it (via `identified_object_id`).
 - Any contributions later marked as incorrect and why.
 
 ### 3.3 Direct editing
 
-Expert and above users can edit the catalogue immediately without waiting for
-approval. A proposal discussion is created in approved state to record the
-change. This is the same approval mechanism — the user has permission to
-approve proposals, so they approve their own right away.
+Expert and above users can edit the catalogue immediately. A proposal
+discussion is created in `approved` state to record the change. This is the same
+approval mechanism — the user has permission to approve proposals, so they
+approve their own right away.
 
 ---
 
@@ -196,21 +213,25 @@ invalidate the original contribution.
 
 ## 5. Audit Trail
 
-All community contributions are recorded as discussions. Proposals,
-approvals, rejections, identification resolutions, and accepted answers are
-all captured by the discussion and comment records.
+Community contributions are recorded as discussions: proposals with their
+reviews, identification resolutions, and accepted answers all live in the
+discussion and comment records.
 
-Three operations involve no discussion and are recorded separately:
+Three administrative operations are recorded separately in `admin_actions`:
 - Creating a temporary user account
 - Manually demoting a user
 - Granting verified status
 
-Each such action records who performed it, what target, any relevant metadata,
-and a timestamp.
+Each entry records who performed it, the target, relevant metadata, and a
+timestamp.
 
 ---
 
 ## 6. Database Schema
+
+Six tables: `users`, `objects`, `discussions`, `comments`, `admin_actions`,
+and the catalogue reference `objects` (defined in `db/schema.sql`). All forum
+tables live in `htdocs/schema-forum.sql`.
 
 ### 6.1 `users`
 
@@ -244,22 +265,41 @@ discovered_by       VARCHAR(128) NULL
 discovery_year      SMALLINT UNSIGNED NULL
 notes               TEXT NULL
 created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ```
 
 ### 6.3 `discussions`
 
+One table holds all three discussion types. A proposal carries its change data
+and approval state, an identification carries the resolved object link, and a
+proposal spawned from an identification carries the parent link back to it.
+
 ```
 id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
 object_id             INT UNSIGNED NULL
-type                  ENUM('general','identification','proposal') DEFAULT 'general'
+type                  ENUM('general','identification','proposal') NOT NULL DEFAULT 'general'
 title                 VARCHAR(255) NOT NULL
 body                  TEXT NOT NULL
 author_id             INT UNSIGNED NOT NULL
-status                ENUM('open','identified','unknown','pending','approved','rejected','closed') NULL
+status                ENUM('open','closed') NOT NULL DEFAULT 'open'
+
+-- Proposal columns
+proposal_type         ENUM('new_object','edit_field','mark_bad') NULL
 proposal_data         JSON NULL
+proposal_status       ENUM('pending','approved','rejected') NULL
+reviewer_id           INT UNSIGNED NULL
+reviewed_at           DATETIME NULL
+
+-- Identification column
+identified_object_id  INT UNSIGNED NULL
+
+-- Link: a proposal spawned from an identification discussion
 parent_discussion_id  INT UNSIGNED NULL
+
+-- Closing
 closed_by             INT UNSIGNED NULL
-closed_reason         TEXT NULL
+closed_reason         VARCHAR(255) NULL
+
 created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
@@ -268,7 +308,6 @@ created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
 discussion_id     INT UNSIGNED NOT NULL
-parent_id         INT UNSIGNED NULL
 body              TEXT NOT NULL
 author_id         INT UNSIGNED NOT NULL
 is_accepted       BOOLEAN DEFAULT FALSE
