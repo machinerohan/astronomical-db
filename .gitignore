@@ -1,0 +1,9 @@
+.env
+.gitconfig
+*.key
+*.pem
+id_*
+known_hosts
+.mysql-data/
+.DS_Store
+*.swp
