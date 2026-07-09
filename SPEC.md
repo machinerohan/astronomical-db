@@ -13,10 +13,10 @@ through community effort with expert oversight.
 
 ### 1.1 Account creation
 
-Users register with a username and password (bcrypt-hashed). Admins can create
-temporary accounts — a random password is shown to the admin once to share out
-of band. On first login with a temporary password, the user must choose their
-own password.
+Users register with a username and a bcrypt-hashed password. Admins can also
+create accounts and set an initial password — for example a random one shown
+to the admin once, to share with the new user out of band. Every user changes
+their own password through the normal password-change feature at any time.
 
 ### 1.2 Roles
 
@@ -67,13 +67,13 @@ All user-generated content is organized as discussions of three types:
 Every discussion is either `open` or `closed`. A proposal discussion also
 carries an approval state — `pending`, `approved`, or `rejected` — and a
 resolved identification links directly to the object it identified. Each
-discussion type has exactly the columns it needs, so a proposal's approval
-state and an identification's resolved object never interfere with one another.
+discussion type uses its own set of columns, so a proposal's approval state
+and an identification's resolved object are tracked independently.
 
 ### 2.1 General discussions
 
 Any user can start a general discussion thread, optionally linked to a
-catalogue object. Anyone can comment. No approval required.
+catalogue object. Anyone can comment.
 
 ### 2.2 Identification discussions
 
@@ -96,26 +96,33 @@ Resolved identifications appear on the identified object's page.
 
 ### 2.3 Proposal discussions
 
-A proposal is a discussion that carries structured change data in
-`proposal_data` (JSON) and moves through an approval workflow. Three kinds of
-proposal exist:
+A proposal discussion collects suggested catalogue changes as proposed-data
+rows linked to its comments. Three kinds of proposal exist:
 
-- **New object**: the user fills out the full object form (name, type,
-  coordinates, magnitude, etc.).
-- **Edit**: the user proposes a change to fields on an existing object.
-- **Mark as bad**: the user flags a previously approved contribution as
+- **New object**: a full object record (name, type, coordinates, magnitude,
+  etc.).
+- **Edit**: a change to one or more fields on an existing object.
+- **Mark as bad**: a flag that a previously approved contribution is
   incorrect, with a reason.
+
+Any user may post a comment and attach proposed data of any of these kinds;
+several participants can propose different data within the same discussion.
+Each proposed-data row sits in a typed table — `proposed_objects`,
+`proposed_edits`, or `proposed_marks` — keyed to the comment that introduced
+it and to the proposal discussion.
 
 A proposal starts in `pending` state. Expert, verified, and admin users can
 approve or reject any pending proposal, including their own.
 
-Any user can submit a mark-as-bad proposal, but only verified and admin users
-can approve one. When approved, the author's net score decreases and the object
-history records the correction.
+Approval selects one comment as the resolution. The proposed-data rows linked
+to that comment are applied to the catalogue: a `proposed_objects` row becomes
+a new object, `proposed_edits` rows update the target object's fields, and a
+`proposed_marks` row applies the correction and reduces the original author's
+net score. The discussion moves to `approved`, the chosen comment is marked
+`is_accepted`, and the change is written to the object's edit history.
 
-While a proposal is `pending`, its author may update `proposal_data` in
-response to the thread's discussion. The data in effect when the proposal is
-approved is the data applied to the catalogue.
+Any user can submit a mark-as-bad proposal, but only verified and admin users
+can approve one.
 
 When a proposal originates from an identification (because the ID discovered a
 new object), its `parent_discussion_id` points back to the identification
@@ -124,8 +131,9 @@ discussion, so the object page shows the full chain.
 ### 2.4 Comments
 
 Comments form a single flat list under each discussion. Each comment has an
-anchor link for direct referencing. On identification discussions, one comment
-carries `is_accepted` to mark the accepted answer.
+anchor link for direct referencing. A comment carries `is_accepted` to mark the
+discussion's chosen resolution — for an identification that is the accepted
+answer, and for a proposal that is the approved data.
 
 ### 2.5 Reference syntax
 
@@ -154,18 +162,18 @@ astronomical convention used by sources such as SIMBAD and OpenNGC.
 
 ### 3.2 Object history
 
-Each object's page shows how its data was assembled:
+Each object's page shows how its data was assembled, drawn from the
+`object_edits` table:
 - The proposal that created it.
 - Every approved edit that changed it.
 - Every resolved identification linked to it (via `identified_object_id`).
-- Any contributions later marked as incorrect and why.
+- Any contributions marked as incorrect and why.
 
 ### 3.3 Direct editing
 
-Expert and above users can edit the catalogue immediately. A proposal
-discussion is created in `approved` state to record the change. This is the same
-approval mechanism — the user has permission to approve proposals, so they
-approve their own right away.
+Expert and above users can edit the catalogue immediately. They create a
+proposal discussion and approve it themselves, and the edit is written to
+`object_edits` like any other applied change.
 
 ---
 
@@ -215,23 +223,21 @@ invalidate the original contribution.
 
 Community contributions are recorded as discussions: proposals with their
 reviews, identification resolutions, and accepted answers all live in the
-discussion and comment records.
+discussion, comment, and proposed-data records. Every applied catalogue change
+is captured row by row in `object_edits`.
 
-Three administrative operations are recorded separately in `admin_actions`:
-- Creating a temporary user account
-- Manually demoting a user
-- Granting verified status
-
-Each entry records who performed it, the target, relevant metadata, and a
-timestamp.
+Three administrative operations are recorded in `admin_actions`: creating a
+user account, manually demoting a user, and granting verified status. Each
+entry records who performed it, the target, and a timestamp.
 
 ---
 
 ## 6. Database Schema
 
-Six tables: `users`, `objects`, `discussions`, `comments`, `admin_actions`,
-and the catalogue reference `objects` (defined in `db/schema.sql`). All forum
-tables live in `htdocs/schema-forum.sql`.
+The catalogue table `objects` is defined in `db/schema.sql`. The forum schema
+in `htdocs/schema-forum.sql` defines eight tables: `users`, `discussions`,
+`comments`, `proposed_objects`, `proposed_edits`, `proposed_marks`,
+`object_edits`, and `admin_actions`.
 
 ### 6.1 `users`
 
@@ -241,7 +247,6 @@ username            VARCHAR(64) NOT NULL UNIQUE
 password            VARCHAR(255) NOT NULL
 role                ENUM('admin','member') DEFAULT 'member'
 expertise           ENUM('normal','expert','verified') DEFAULT 'normal'
-temp_password       VARCHAR(255) NULL
 admin_demoted_at    TIMESTAMP NULL
 verified_by_id      INT UNSIGNED NULL
 verified_at         DATETIME NULL
@@ -270,9 +275,9 @@ updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMEST
 
 ### 6.3 `discussions`
 
-One table holds all three discussion types. A proposal carries its change data
-and approval state, an identification carries the resolved object link, and a
-proposal spawned from an identification carries the parent link back to it.
+One table holds all three discussion types. A proposal carries its approval
+state, an identification carries the resolved object link, and a proposal
+spawned from an identification carries the parent link back to it.
 
 ```
 id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
@@ -285,7 +290,6 @@ status                ENUM('open','closed') NOT NULL DEFAULT 'open'
 
 -- Proposal columns
 proposal_type         ENUM('new_object','edit_field','mark_bad') NULL
-proposal_data         JSON NULL
 proposal_status       ENUM('pending','approved','rejected') NULL
 reviewer_id           INT UNSIGNED NULL
 reviewed_at           DATETIME NULL
@@ -314,7 +318,81 @@ is_accepted       BOOLEAN DEFAULT FALSE
 created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
-### 6.5 `admin_actions`
+### 6.5 `proposed_objects`
+
+Holds the data for a `new_object` proposal, mirroring the `objects` columns and
+linking to the comment that introduced it.
+
+```
+id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+discussion_id       INT UNSIGNED NOT NULL
+comment_id          INT UNSIGNED NOT NULL
+author_id           INT UNSIGNED NOT NULL
+name                VARCHAR(255) NOT NULL
+catalog_id          VARCHAR(64) NULL
+object_type         VARCHAR(64) NOT NULL
+right_ascension     VARCHAR(16) NULL
+declination         VARCHAR(16) NULL
+apparent_mag        DECIMAL(6,3) NULL
+constellation       VARCHAR(16) NULL
+distance_ly         DECIMAL(12,3) NULL
+discovered_by       VARCHAR(128) NULL
+discovery_year      SMALLINT UNSIGNED NULL
+notes               TEXT NULL
+status              ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'
+created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+```
+
+### 6.6 `proposed_edits`
+
+Holds one proposed field change per row for an `edit_field` proposal.
+
+```
+id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+discussion_id   INT UNSIGNED NOT NULL
+comment_id      INT UNSIGNED NOT NULL
+object_id       INT UNSIGNED NOT NULL
+author_id       INT UNSIGNED NOT NULL
+field           VARCHAR(64) NOT NULL
+old_value       VARCHAR(255) NULL
+new_value       VARCHAR(255) NULL
+status          ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'
+created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+```
+
+### 6.7 `proposed_marks`
+
+Holds a `mark_as_bad` proposal.
+
+```
+id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+discussion_id   INT UNSIGNED NOT NULL
+comment_id      INT UNSIGNED NOT NULL
+object_id       INT UNSIGNED NOT NULL
+author_id       INT UNSIGNED NOT NULL
+reason          TEXT NOT NULL
+status          ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'
+created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+```
+
+### 6.8 `object_edits`
+
+The per-object edit history: one row per applied field change.
+
+```
+id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+object_id       INT UNSIGNED NOT NULL
+discussion_id   INT UNSIGNED NOT NULL
+comment_id      INT UNSIGNED NULL
+action          ENUM('created','edited','marked_bad') NOT NULL
+field           VARCHAR(64) NULL
+old_value       VARCHAR(255) NULL
+new_value       VARCHAR(255) NULL
+reviewer_id     INT UNSIGNED NOT NULL
+created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+```
+
+### 6.9 `admin_actions`
 
 ```
 id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
@@ -322,7 +400,6 @@ admin_id        INT UNSIGNED NOT NULL
 action          ENUM('create_user','demote_user','verify_user')
 target_type     ENUM('user') NOT NULL
 target_id       INT UNSIGNED NOT NULL
-metadata        JSON NULL
 created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
