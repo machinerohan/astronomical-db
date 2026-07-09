@@ -162,8 +162,18 @@ astronomical convention used by sources such as SIMBAD and OpenNGC.
 
 ### 3.2 Object history
 
-Each object's page shows how its data was assembled, drawn from the
-`object_edits` table:
+Every change to an object is recorded as a row in `object_edits`, which is the
+object's complete edit history. Each entry records the source proposal
+(`discussion_id`), the approved comment that supplied the data (`comment_id`),
+the reviewer who approved it (`reviewer_id`), and the change itself
+(`action`, `field`, `old_value`, `new_value`).
+
+The `action` column distinguishes how the object was affected: `created` for the
+proposal that introduced it, `edited` for each approved field change, and
+`marked_bad` for a contribution flagged as incorrect. Creation, edits, and marks
+therefore live in one continuous history.
+
+An object's page draws from `object_edits` to show:
 - The proposal that created it.
 - Every approved edit that changed it.
 - Every resolved identification linked to it (via `identified_object_id`).
