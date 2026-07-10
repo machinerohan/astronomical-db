@@ -63,9 +63,8 @@ Threads are the basic unit of discussion. A thread has:
 - A title and body (body is plain text with reference syntax)
 - An author
 - A category (FK to `categories`)
-- An optional link to a catalogue entry (FK `entry_id`) — set when the
-  thread is explicitly about a known object. The entry detail page lists
-  all threads linked this way.
+- An optional link to a catalogue entry (FK `identified_entry_id`) on
+  identification threads — set when a solution identifies a known object.
 - A status: `open` or `closed`
 - `is_accepted` boolean — set if the OP's initial post is selected as
   the approved proposal data (see §1.5).
@@ -115,21 +114,24 @@ that reply and closes the thread.
 If the identification points to an existing catalogue entry, the
 thread is linked to it via `identified_entry_id`. The system checks
 the solution reply for `@entry:` mentions to auto-link the existing
-entry. If the reply mentions no known entry, the solver (or the OP)
-manually creates a proposal thread in the relevant proposals
-sub-category with `parent_reply_id` pointing to the solution reply.
-`identified_entry_id` stays NULL on the ident thread until the
-proposal is approved and the entry exists, at which point whoever
-reviews the proposal sets `identified_entry_id` to the newly created
-entry. This preserves the full chain: ident thread → solution reply
-→ proposal → approved entry.
+entry. If the reply mentions no known entry, the last reply in the
+identification thread is linked to the proposal thread via
+`parent_reply_id` (on the proposal thread) — set automatically when
+the proposal is created from the identification thread. The entry
+detail page lists all threads linked via `identified_entry_id`.
+
+When the proposal is approved and the entry exists, whoever reviews
+the proposal sets `identified_entry_id` on the identification thread
+to the newly created entry. This preserves the full chain: ident
+thread → last reply → proposal → approved entry.
 
 The UI is a simple "Mark as solution" button on each reply, visible
 only to the thread author and admins. No dropdown, no object selector.
 If the solver wants to link to an existing entry, they write
 `@entry:Sirius` in their reply and the system picks it up when the
-solution is marked. If the reply mentions no known entry, the system
-offers to create a proposal thread.
+solution is marked. If the reply mentions no known entry, the
+proposal creation form auto-sets `parent_reply_id` to the last reply
+in the identification thread.
 
 ### 1.5 Proposals (catalogue changes)
 
@@ -212,7 +214,7 @@ password through the normal password-change feature.
 | Role     | Permissions                                                                 |
 |----------|-----------------------------------------------------------------------------|
 | `admin`  | Create/manage users, grant verified badge, demote experts, close threads,   |
-|          | mark any solution, manage categories                                        |
+|          | mark any solution                                                           |
 | `member` | Create threads, reply, propose catalogue changes, mark solution on own      |
 |          | identification threads                                                      |
 
@@ -482,7 +484,6 @@ CREATE TABLE threads (
   title                 VARCHAR(255) NOT NULL,
   body                  TEXT NOT NULL,
   author_id             INT UNSIGNED NOT NULL,
-  entry_id              INT UNSIGNED NULL COMMENT 'direct link to a catalogue entry',
   status                ENUM('open','closed') NOT NULL DEFAULT 'open',
   is_accepted           BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'True if OP proposal data was approved',
 
@@ -506,7 +507,6 @@ CREATE TABLE threads (
 
   FOREIGN KEY (category_id)          REFERENCES categories(id),
   FOREIGN KEY (author_id)            REFERENCES users(id),
-  FOREIGN KEY (entry_id)             REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (reviewer_id)          REFERENCES users(id),
   FOREIGN KEY (identified_entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (closed_by)            REFERENCES users(id)
