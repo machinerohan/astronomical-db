@@ -25,20 +25,12 @@ if ($entry['status'] === 'deleted') {
 }
 require_once __DIR__ . '/includes/header.php';
 
-$fields = [
-    'Name' => $entry['name'],
-    'Catalog ID' => $entry['catalog_id'],
-    'Type' => $entry['entry_type'],
-    'Right Ascension (J2000)' => $entry['right_ascension'],
-    'Declination (J2000)' => $entry['declination'],
-    'Apparent Magnitude' => $entry['apparent_mag'],
-    'Spectral Type' => $entry['spectral_type'],
-    'Constellation' => $entry['constellation'],
-    'Distance (ly)' => $entry['distance_ly'],
-    'Discovered by' => $entry['discovered_by'],
-    'Discovery Year' => $entry['discovery_year'],
-    'Status' => $entry['status'],
-];
+$fields = [];
+foreach ($ENTRY_FIELD_LABELS as $col => $label) {
+    if ($col === 'notes') continue;
+    $fields[$label] = $entry[$col];
+}
+$fields['Status'] = $entry['status'];
 ?>
 <h1><?= h($entry['name']) ?></h1>
 <?php if ($entry['status'] === 'deleted'): ?>

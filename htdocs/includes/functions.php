@@ -61,3 +61,25 @@ function is_proposal_category(PDO $pdo, int $category_id): bool {
     $cat = $stmt->fetch();
     return $cat && $cat['parent_id'] !== null;
 }
+
+$ENTRY_FIELD_COLUMNS = ['name','catalog_id','entry_type','right_ascension','declination',
+    'apparent_mag','spectral_type','constellation','distance_ly','discovered_by','discovery_year','notes'];
+
+$ENTRY_FIELD_LABELS = [
+    'name' => 'Name',
+    'catalog_id' => 'Catalog ID',
+    'entry_type' => 'Type',
+    'right_ascension' => 'Right Ascension (J2000)',
+    'declination' => 'Declination (J2000)',
+    'apparent_mag' => 'Apparent Magnitude',
+    'spectral_type' => 'Spectral Type',
+    'constellation' => 'Constellation',
+    'distance_ly' => 'Distance (ly)',
+    'discovered_by' => 'Discovered by',
+    'discovery_year' => 'Discovery Year',
+    'notes' => 'Notes',
+];
+
+$ENTRY_TYPES = ['star','galaxy','nebula','emission_nebula','reflection_nebula','planetary_nebula',
+    'open_cluster','globular_cluster','quasar','planet','dwarf_planet','moon','asteroid','comet',
+    'cluster','supernova_remnant'];

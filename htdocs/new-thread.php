@@ -33,25 +33,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $thread_id = $pdo->lastInsertId();
 
             if ($is_proposal && $proposal_type === 'add_entry') {
-                $pst = $pdo->prepare('
-                    INSERT INTO proposed_entries (thread_id, reply_id, author_id, name, catalog_id, entry_type,
-                        right_ascension, declination, apparent_mag, spectral_type, constellation, distance_ly, discovered_by, discovery_year, notes)
-                    VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ');
-                $pst->execute([
-                    $thread_id, $user['id'],
-                    $_POST['pe_name'] ?? '', !empty($_POST['pe_catalog_id']) ? $_POST['pe_catalog_id'] : null,
-                    $_POST['pe_entry_type'] ?? 'star',
-                    !empty($_POST['pe_ra']) ? $_POST['pe_ra'] : null,
-                    !empty($_POST['pe_dec']) ? $_POST['pe_dec'] : null,
-                    !empty($_POST['pe_mag']) ? $_POST['pe_mag'] : null,
-                    !empty($_POST['pe_spectral_type']) ? $_POST['pe_spectral_type'] : null,
-                    !empty($_POST['pe_constellation']) ? $_POST['pe_constellation'] : null,
-                    !empty($_POST['pe_distance']) ? $_POST['pe_distance'] : null,
-                    !empty($_POST['pe_discoverer']) ? $_POST['pe_discoverer'] : null,
-                    !empty($_POST['pe_discovery_year']) ? $_POST['pe_discovery_year'] : null,
-                    !empty($_POST['pe_notes']) ? $_POST['pe_notes'] : null,
-                ]);
+                $cols = implode(', ', $ENTRY_FIELD_COLUMNS);
+                $phs = implode(', ', array_fill(0, count($ENTRY_FIELD_COLUMNS), '?'));
+                $pst = $pdo->prepare("
+                    INSERT INTO proposed_entries (thread_id, reply_id, author_id, $cols)
+                    VALUES (?, NULL, ?, $phs)
+                ");
+                $vals = [$thread_id, $user['id']];
+                foreach ($ENTRY_FIELD_COLUMNS as $f) {
+                    $pk = 'pe_' . $f;
+                    if ($f === 'entry_type') {
+                        $vals[] = $_POST[$pk] ?? 'star';
+                    } elseif ($f === 'name') {
+                        $vals[] = $_POST[$pk] ?? '';
+                    } else {
+                        $vals[] = !empty($_POST[$pk]) ? $_POST[$pk] : null;
+                    }
+                }
+                $pst->execute($vals);
             } elseif ($is_proposal && $proposal_type === 'edit_field') {
                 $pst = $pdo->prepare('
                     INSERT INTO proposed_field_edits (thread_id, reply_id, entry_id, author_id, field, old_value, new_value)
@@ -88,9 +87,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $page_title = 'New Thread';
 require_once __DIR__ . '/includes/header.php';
 
-$all_entry_types = ['star','galaxy','nebula','emission_nebula','reflection_nebula','planetary_nebula',
-    'open_cluster','globular_cluster','quasar','planet','dwarf_planet','moon','asteroid','comet',
-    'cluster','supernova_remnant'];
 ?>
 <h1>New Thread in <?= h($cat['name']) ?></h1>
 
@@ -117,18 +113,18 @@ $all_entry_types = ['star','galaxy','nebula','emission_nebula','reflection_nebul
     <p><label>Catalog ID: <input type="text" name="pe_catalog_id" size="20"></label></p>
     <p><label>Entry type:
       <select name="pe_entry_type">
-        <?php foreach ($all_entry_types as $et): ?>
+        <?php foreach ($ENTRY_TYPES as $et): ?>
           <option value="<?= h($et) ?>"><?= h($et) ?></option>
         <?php endforeach; ?>
       </select>
     </label></p>
-    <p><label>RA (J2000): <input type="text" name="pe_ra" size="16" placeholder="06:45:08.9"></label>
-       <label>Dec: <input type="text" name="pe_dec" size="16" placeholder="-16:42:58"></label></p>
-    <p><label>Mag: <input type="text" name="pe_mag" size="8"></label>
+    <p><label>RA (J2000): <input type="text" name="pe_right_ascension" size="16" placeholder="06:45:08.9"></label>
+       <label>Dec: <input type="text" name="pe_declination" size="16" placeholder="-16:42:58"></label></p>
+    <p><label>Mag: <input type="text" name="pe_apparent_mag" size="8"></label>
        <label>Spectral type: <input type="text" name="pe_spectral_type" size="10" placeholder="A0V"></label>
        <label>Constellation: <input type="text" name="pe_constellation" size="8" placeholder="CMa"></label></p>
-    <p><label>Distance (ly): <input type="text" name="pe_distance" size="12"></label></p>
-    <p><label>Discoverer: <input type="text" name="pe_discoverer" size="30"></label>
+    <p><label>Distance (ly): <input type="text" name="pe_distance_ly" size="12"></label></p>
+    <p><label>Discoverer: <input type="text" name="pe_discovered_by" size="30"></label>
        <label>Year: <input type="number" name="pe_discovery_year" size="6"></label></p>
     <p><label>Notes: <br><textarea name="pe_notes" rows="4" cols="60"></textarea></label></p>
   </div>
