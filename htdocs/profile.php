@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/init.php';
 
 $username = $_GET['username'] ?? ($_SESSION['user_username'] ?? '');
 $stmt = $pdo->prepare('SELECT * FROM users WHERE username = ?');
@@ -27,21 +25,8 @@ $stmt = $pdo->prepare("
 $stmt->execute([$prof['id']]);
 $proposals_submitted = (int)$stmt->fetchColumn();
 
-$pos = $pdo->prepare("
-    SELECT COUNT(*) FROM proposed_entries pe
-    JOIN threads t ON t.id = pe.thread_id
-    WHERE pe.author_id = ? AND (t.is_accepted = 1 OR t.proposal_status = 'approved')
-");
-$pos->execute([$prof['id']]);
-$approved = (int)$pos->fetchColumn();
-
-$pos2 = $pdo->prepare("
-    SELECT COUNT(*) FROM proposed_field_edits pfe
-    JOIN threads t ON t.id = pfe.thread_id
-    WHERE pfe.author_id = ? AND (t.is_accepted = 1 OR t.proposal_status = 'approved')
-");
-$pos2->execute([$prof['id']]);
-$approved += (int)$pos2->fetchColumn();
+$approved = count_approved($pdo, 'proposed_entries', 'author_id', $prof['id']);
+$approved += count_approved($pdo, 'proposed_field_edits', 'author_id', $prof['id']);
 
 $neg = $pdo->prepare("SELECT COUNT(*) FROM entry_edits WHERE target_author_id = ? AND action = 'removed'");
 $neg->execute([$prof['id']]);
@@ -51,14 +36,14 @@ $net = $approved - $removed;
 ?>
 <h1><?= h($prof['username']) ?></h1>
 
-<table border="1" cellpadding="6" style="border-collapse:collapse">
+<table>
 <tr><td>Role</td><td><?= h($prof['role']) ?></td></tr>
 <tr><td>Expertise</td><td><?= h($prof['expertise']) ?></td></tr>
 <tr><td>Member since</td><td><?= date('M j, Y', strtotime($prof['created_at'])) ?></td></tr>
 </table>
 
 <h2>Contribution Stats</h2>
-<table border="1" cellpadding="6" style="border-collapse:collapse">
+<table>
 <tr><td>Threads started</td><td><?= $threads_started ?></td></tr>
 <tr><td>Solutions provided</td><td><?= $solutions ?></td></tr>
 <tr><td>Proposals submitted</td><td><?= $proposals_submitted ?></td></tr>

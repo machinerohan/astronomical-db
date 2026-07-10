@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/init.php';
 require_admin();
 
 $page_title = 'Admin Dashboard';
@@ -15,7 +13,7 @@ $entry_count = $pdo->query("SELECT COUNT(*) FROM objects WHERE status = 'active'
 ?>
 <h1>Admin Dashboard</h1>
 
-<table border="1" cellpadding="6" style="border-collapse:collapse">
+<table>
 <tr><td>Users</td><td><?= $user_count ?></td></tr>
 <tr><td>Threads</td><td><?= $thread_count ?></td></tr>
 <tr><td>Replies</td><td><?= $reply_count ?></td></tr>

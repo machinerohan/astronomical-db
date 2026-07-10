@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/init.php';
 require_admin();
 
 $page_title = 'Manage Users';
@@ -41,10 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $users = $pdo->query("SELECT * FROM users ORDER BY username")->fetchAll();
 ?>
 <h1>Manage Users</h1>
-<?php if ($error): ?><p style="color:red"><?= h($error) ?></p><?php endif; ?>
-<?php if ($success): ?><p style="color:green"><?= h($success) ?></p><?php endif; ?>
+<?php render_flash('error'); render_flash('success'); ?>
 
-<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
+<table class="wide">
 <tr><th>ID</th><th>Username</th><th>Role</th><th>Expertise</th><th>Demoted At</th><th>Actions</th></tr>
 <?php foreach ($users as $u): ?>
   <tr>

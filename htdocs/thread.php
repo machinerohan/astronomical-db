@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/init.php';
 
 $id = (int)($_GET['id'] ?? 0);
 $rid = (int)($_GET['rid'] ?? 0);
@@ -50,45 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute([$id, $body, $user['id']]);
                 $reply_id = $pdo->lastInsertId();
 
-                if ($is_proposal && $thread['proposal_type'] === 'add_entry') {
-                    $cols = implode(', ', $ENTRY_FIELD_COLUMNS);
-                    $phs = implode(', ', array_fill(0, count($ENTRY_FIELD_COLUMNS), '?'));
-                    $pst = $pdo->prepare("
-                        INSERT INTO proposed_entries (thread_id, reply_id, author_id, $cols)
-                        VALUES (?, ?, ?, $phs)
-                    ");
-                    $vals = [$id, $reply_id, $user['id']];
-                    foreach ($ENTRY_FIELD_COLUMNS as $f) {
-                        $pk = 'pe_' . $f;
-                        if ($f === 'entry_type') {
-                            $vals[] = $_POST[$pk] ?? 'star';
-                        } elseif ($f === 'name') {
-                            $vals[] = $_POST[$pk] ?? '';
-                        } else {
-                            $vals[] = !empty($_POST[$pk]) ? $_POST[$pk] : null;
-                        }
-                    }
-                    $pst->execute($vals);
-                } elseif ($is_proposal && $thread['proposal_type'] === 'edit_field') {
-                    $pst = $pdo->prepare('
-                        INSERT INTO proposed_field_edits (thread_id, reply_id, entry_id, author_id, field, old_value, new_value)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ');
-                    $pst->execute([
-                        $id, $reply_id, (int)($_POST['pfe_entry_id'] ?? 0), $user['id'],
-                        $_POST['pfe_field'] ?? '', !empty($_POST['pfe_old_value']) ? $_POST['pfe_old_value'] : null,
-                        !empty($_POST['pfe_new_value']) ? $_POST['pfe_new_value'] : null,
-                    ]);
-                } elseif ($is_proposal && $thread['proposal_type'] === 'remove_entry') {
-                    $pst = $pdo->prepare('
-                        INSERT INTO proposed_removals (thread_id, reply_id, entry_id, target_field, author_id, reason)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    ');
-                    $pst->execute([
-                        $id, $reply_id, (int)($_POST['pr_entry_id'] ?? 0),
-                        !empty($_POST['pr_target_field']) ? $_POST['pr_target_field'] : null, $user['id'],
-                        $_POST['pr_reason'] ?? '',
-                    ]);
+                if ($is_proposal) {
+                    insert_proposal_data($pdo, $id, $reply_id, $user['id'], $thread['proposal_type']);
                 }
 
                 $pdo->commit();
@@ -113,10 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt->execute([$reply_id]);
             $reply = $stmt->fetch();
             if ($reply && preg_match('/@entry:([^\s<>]+)/', $reply['body'], $m)) {
-                $q = $m[1];
-                $stmt = $pdo->prepare("SELECT id FROM objects WHERE name = ? OR catalog_id = ? LIMIT 1");
-                $stmt->execute([$q, $q]);
-                $entry = $stmt->fetch();
+                $entry = find_object($pdo, $m[1], 'id');
                 if ($entry) {
                     $pdo->prepare('UPDATE threads SET identified_entry_id = ? WHERE id = ?')
                         ->execute([$entry['id'], $id]);
@@ -402,8 +360,7 @@ require_once __DIR__ . '/includes/header.php';
   <p><strong>Closed:</strong> <?= h($thread['closed_reason']) ?></p>
 <?php endif; ?>
 
-<?php if ($success): ?><p style="color:green"><?= h($success) ?></p><?php endif; ?>
-<?php if ($error): ?><p style="color:red"><?= h($error) ?></p><?php endif; ?>
+<?php render_flash('success'); render_flash('error'); ?>
 
 <h2>Replies</h2>
 

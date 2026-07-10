@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/init.php';
 
 $page_title = 'Catalogue';
 require_once __DIR__ . '/includes/header.php';
@@ -67,7 +65,7 @@ $types = $pdo->query("SELECT DISTINCT entry_type FROM objects WHERE status = 'ac
 <?php if (empty($entries)): ?>
   <p>No entries found.</p>
 <?php else: ?>
-  <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
+  <table class="wide">
   <tr><th>Name</th><th>Catalog ID</th><th>Type</th><th>Constellation</th><th>Mag</th><th>Threads</th></tr>
   <?php foreach ($entries as $e): ?>
     <tr>
@@ -81,16 +79,7 @@ $types = $pdo->query("SELECT DISTINCT entry_type FROM objects WHERE status = 'ac
   <?php endforeach; ?>
   </table>
 
-  <?php if ($total_pages > 1): ?>
-    <p>
-    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
-      <?php if ($p === $page): ?><strong><?= $p ?></strong>
-      <?php else: ?>
-        <a href="catalogue.php?page=<?= $p ?>&search=<?= h(urlencode($search)) ?>&type=<?= h(urlencode($type_filter)) ?>"><?= $p ?></a>
-      <?php endif; ?>
-    <?php endfor; ?>
-    </p>
-  <?php endif; ?>
+  <?php render_pagination($page, $total_pages, "catalogue.php?page={p}&search=" . h(urlencode($search)) . "&type=" . h(urlencode($type_filter))); ?>
 <?php endif; ?>
 <?php
 require_once __DIR__ . '/includes/footer.php';

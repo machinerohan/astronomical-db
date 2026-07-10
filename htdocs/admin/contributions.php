@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/init.php';
 require_admin();
 
 $page_title = 'Contribution History';
@@ -30,7 +28,7 @@ $edits = $pdo->query("
 <?php if (empty($edits)): ?>
   <p>No contributions recorded.</p>
 <?php else: ?>
-  <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
+  <table class="wide">
   <tr><th>Entry</th><th>Action</th><th>Field</th><th>Old</th><th>New</th><th>Reviewer</th><th>Thread</th><th>Date</th></tr>
   <?php foreach ($edits as $e): ?>
     <tr>
@@ -46,15 +44,7 @@ $edits = $pdo->query("
   <?php endforeach; ?>
   </table>
 
-  <?php if ($total_pages > 1): ?>
-    <p>
-    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
-      <?php if ($p === $page): ?><strong><?= $p ?></strong>
-      <?php else: ?><a href="contributions.php?page=<?= $p ?>"><?= $p ?></a>
-      <?php endif; ?>
-    <?php endfor; ?>
-    </p>
-  <?php endif; ?>
+  <?php render_pagination($page, $total_pages, "contributions.php?page={p}"); ?>
 <?php endif; ?>
 <?php
 require_once __DIR__ . '/../includes/footer.php';

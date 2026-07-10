@@ -1,21 +1,10 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/init.php';
 
 $q = $_GET['q'] ?? '';
 if (!$q) { header('Location: catalogue.php'); exit; }
 
-$stmt = $pdo->prepare("SELECT * FROM objects WHERE name = ? OR catalog_id = ? LIMIT 1");
-$stmt->execute([$q, $q]);
-$entry = $stmt->fetch();
-if (!$entry) {
-    // Try LIKE search
-    $stmt = $pdo->prepare("SELECT * FROM objects WHERE name LIKE ? OR catalog_id LIKE ? LIMIT 1");
-    $like = "%$q%";
-    $stmt->execute([$like, $like]);
-    $entry = $stmt->fetch();
-}
+$entry = find_object($pdo, $q);
 if (!$entry) { header('HTTP/1.1 404 Not Found'); echo 'Entry not found.'; exit; }
 
 if ($entry['status'] === 'deleted') {
@@ -37,7 +26,7 @@ $fields['Status'] = $entry['status'];
   <p><strong style="color:red">This entry has been deleted.</strong></p>
 <?php endif; ?>
 
-<table border="1" cellpadding="6" style="border-collapse:collapse">
+<table>
 <?php foreach ($fields as $label => $value): ?>
   <tr><th style="text-align:right"><?= h($label) ?></th><td><?= h($value ?? '') ?></td></tr>
 <?php endforeach; ?>
@@ -65,7 +54,7 @@ $edits = $stmt->fetchAll();
 <?php if (empty($edits)): ?>
   <p>No edit history recorded.</p>
 <?php else: ?>
-  <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
+  <table class="wide">
   <tr><th>Action</th><th>Field</th><th>Old Value</th><th>New Value</th><th>Reviewer</th><th>Thread</th><th>Date</th></tr>
   <?php foreach ($edits as $e): ?>
     <tr>

@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/init.php';
 require_admin();
 
 $page_title = 'Pending Proposals';
@@ -22,7 +20,7 @@ $proposals = $stmt->fetchAll();
 <?php if (empty($proposals)): ?>
   <p>No pending proposals.</p>
 <?php else: ?>
-  <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
+  <table class="wide">
   <tr><th>Thread</th><th>Author</th><th>Category</th><th>Type</th><th>Date</th></tr>
   <?php foreach ($proposals as $p): ?>
     <tr>

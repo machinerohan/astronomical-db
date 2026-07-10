@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/init.php';
 require_login();
 
 $page_title = 'Change Password';
@@ -31,8 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <h1>Change Password</h1>
-<?php if ($error): ?><p style="color:red"><?= h($error) ?></p><?php endif; ?>
-<?php if ($success): ?><p style="color:green"><?= h($success) ?></p><?php endif; ?>
+<?php render_flash('error'); render_flash('success'); ?>
 <form method="post">
 <p><label>Current password: <br><input type="password" name="current_password" required></label></p>
 <p><label>New password: <br><input type="password" name="new_password" required></label></p>

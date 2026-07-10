@@ -73,19 +73,8 @@ function recalculate_expertise(PDO $pdo, int $user_id): void {
     if (!$user) return;
     if ($user['admin_demoted_at'] !== null) return;
 
-    $pos = $pdo->prepare("
-        SELECT COUNT(*) FROM proposed_entries pe
-        JOIN threads t ON t.id = pe.thread_id
-        WHERE pe.author_id = ? AND (t.is_accepted = 1 OR t.proposal_status = 'approved')
-    ");
-    $pos->execute([$user_id]);
-    $positive = (int)$pos->fetchColumn();
-
-    $pos2 = $pdo->prepare("
-        SELECT COUNT(*) FROM proposed_field_edits pfe
-        JOIN threads t ON t.id = pfe.thread_id
-        WHERE pfe.author_id = ? AND (t.is_accepted = 1 OR t.proposal_status = 'approved')
-    ");
+    $positive = count_approved($pdo, 'proposed_entries', 'author_id', $user_id);
+    $positive += count_approved($pdo, 'proposed_field_edits', 'author_id', $user_id);
     $pos2->execute([$user_id]);
     $positive += (int)$pos2->fetchColumn();
 

@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/init.php';
 
 if (is_logged_in()) {
     header('Location: index.php');
@@ -25,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <h1>Login</h1>
-<?php if ($error): ?><p style="color:red"><?= h($error) ?></p><?php endif; ?>
+<?php render_flash('error'); ?>
 <form method="post">
 <p><label>Username: <br><input type="text" name="username" required></label></p>
 <p><label>Password: <br><input type="password" name="password" required></label></p>

@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/init.php';
 
 $slug = $_GET['slug'] ?? '';
 $stmt = $pdo->prepare('SELECT * FROM categories WHERE slug = ?');
@@ -42,7 +40,7 @@ $total_pages = max(1, ceil($total / $per_page));
 <?php if (empty($threads)): ?>
   <p>No threads yet. <a href="new-thread.php?category=<?= h($cat['slug']) ?>">Start one!</a></p>
 <?php else: ?>
-  <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
+  <table class="wide">
   <tr><th>Thread</th><th>Replies</th><th>Author</th><th>Last Activity</th></tr>
   <?php foreach ($threads as $t): ?>
     <tr>
@@ -63,15 +61,7 @@ $total_pages = max(1, ceil($total / $per_page));
   <?php endforeach; ?>
   </table>
 
-  <?php if ($total_pages > 1): ?>
-    <p>
-    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
-      <?php if ($p === $page): ?><strong><?= $p ?></strong>
-      <?php else: ?><a href="category.php?slug=<?= h($slug) ?>&page=<?= $p ?>"><?= $p ?></a>
-      <?php endif; ?>
-    <?php endfor; ?>
-    </p>
-  <?php endif; ?>
+  <?php render_pagination($page, $total_pages, "category.php?slug=" . h($slug) . "&page={p}"); ?>
 <?php endif; ?>
 <?php
 require_once __DIR__ . '/includes/footer.php';

@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/init.php';
 require_admin();
 
 $page_title = 'Create User';
@@ -39,8 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <h1>Create User</h1>
-<?php if ($error): ?><p style="color:red"><?= h($error) ?></p><?php endif; ?>
-<?php if ($success): ?><p style="color:green"><?= h($success) ?></p><?php endif; ?>
+<?php render_flash('error'); render_flash('success'); ?>
 <form method="post">
 <p><label>Username: <br><input type="text" name="username" required></label></p>
 <p><label>Password: <br><input type="text" name="password" required></label></p>

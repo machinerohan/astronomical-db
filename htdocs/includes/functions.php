@@ -62,6 +62,97 @@ function is_proposal_category(PDO $pdo, int $category_id): bool {
     return $cat && $cat['parent_id'] !== null;
 }
 
+function render_flash(string $var): void {
+    if (isset($GLOBALS[$var]) && $GLOBALS[$var]) {
+        $cls = $var === 'error' ? 'fmsg-error' : 'fmsg-success';
+        echo '<div class="fmsg ' . $cls . '">' . h($GLOBALS[$var]) . '</div>';
+    }
+}
+
+function find_object(PDO $pdo, string $q, string $select = '*'): ?array {
+    $stmt = $pdo->prepare("SELECT $select FROM objects WHERE name = ? OR catalog_id = ? LIMIT 1");
+    $stmt->execute([$q, $q]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        $like = "%$q%";
+        $stmt = $pdo->prepare("SELECT $select FROM objects WHERE name LIKE ? OR catalog_id LIKE ? LIMIT 1");
+        $stmt->execute([$like, $like]);
+        $row = $stmt->fetch();
+    }
+    return $row ?: null;
+}
+
+function approved_proposal_sql(): string {
+    return "(t.is_accepted = 1 OR t.proposal_status = 'approved')";
+}
+
+function count_approved(PDO $pdo, string $table, string $column, int $author_id): int {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM $table
+        JOIN threads t ON t.id = $table.thread_id
+        WHERE $table.$column = ? AND " . approved_proposal_sql()
+    );
+    $stmt->execute([$author_id]);
+    return (int)$stmt->fetchColumn();
+}
+
+function render_pagination(int $current, int $total, string $tmpl): void {
+    if ($total <= 1) return;
+    echo '<p>';
+    for ($p = 1; $p <= $total; $p++) {
+        if ($p === $current) {
+            echo '<strong>' . $p . '</strong> ';
+        } else {
+            $url = str_replace('{p}', $p, $tmpl);
+            echo '<a href="' . h($url) . '">' . $p . '</a> ';
+        }
+    }
+    echo '</p>';
+}
+
+function insert_proposal_data(PDO $pdo, int $thread_id, ?int $reply_id, int $author_id, string $proposal_type): void {
+    if ($proposal_type === 'add_entry') {
+        $cols = implode(', ', $GLOBALS['ENTRY_FIELD_COLUMNS']);
+        $phs = implode(', ', array_fill(0, count($GLOBALS['ENTRY_FIELD_COLUMNS']), '?'));
+        $pst = $pdo->prepare("
+            INSERT INTO proposed_entries (thread_id, reply_id, author_id, $cols)
+            VALUES (?, ?, ?, $phs)
+        ");
+        $vals = [$thread_id, $reply_id, $author_id];
+        foreach ($GLOBALS['ENTRY_FIELD_COLUMNS'] as $f) {
+            $pk = 'pe_' . $f;
+            if ($f === 'entry_type') {
+                $vals[] = $_POST[$pk] ?? 'star';
+            } elseif ($f === 'name') {
+                $vals[] = $_POST[$pk] ?? '';
+            } else {
+                $vals[] = !empty($_POST[$pk]) ? $_POST[$pk] : null;
+            }
+        }
+        $pst->execute($vals);
+    } elseif ($proposal_type === 'edit_field') {
+        $pst = $pdo->prepare('
+            INSERT INTO proposed_field_edits (thread_id, reply_id, entry_id, author_id, field, old_value, new_value)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ');
+        $pst->execute([
+            $thread_id, $reply_id, (int)($_POST['pfe_entry_id'] ?? 0), $author_id,
+            $_POST['pfe_field'] ?? '', !empty($_POST['pfe_old_value']) ? $_POST['pfe_old_value'] : null,
+            !empty($_POST['pfe_new_value']) ? $_POST['pfe_new_value'] : null,
+        ]);
+    } elseif ($proposal_type === 'remove_entry') {
+        $pst = $pdo->prepare('
+            INSERT INTO proposed_removals (thread_id, reply_id, entry_id, target_field, author_id, reason)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ');
+        $pst->execute([
+            $thread_id, $reply_id, (int)($_POST['pr_entry_id'] ?? 0),
+            !empty($_POST['pr_target_field']) ? $_POST['pr_target_field'] : null, $author_id,
+            $_POST['pr_reason'] ?? '',
+        ]);
+    }
+}
+
 $ENTRY_FIELD_COLUMNS = ['name','catalog_id','entry_type','right_ascension','declination',
     'apparent_mag','spectral_type','constellation','distance_ly','discovered_by','discovery_year','notes'];
 

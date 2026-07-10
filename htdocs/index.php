@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/init.php';
 
 $page_title = 'Forum Index';
 require_once __DIR__ . '/includes/header.php';
@@ -22,7 +20,7 @@ foreach ($cats as $c) {
 }
 ?>
 <h1>AstroForum</h1>
-<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;max-width:700px">
+<table class="wide" style="max-width:700px">
 <tr><th>Category</th><th>Threads</th></tr>
 <?php foreach ($parents as $cat): ?>
 <tr>
