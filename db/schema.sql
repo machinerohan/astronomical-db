@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS objects (
   right_ascension VARCHAR(16)  NULL,
   declination     VARCHAR(16)  NULL,
   apparent_mag    DECIMAL(6,3) NULL COMMENT 'apparent magnitude',
+  spectral_type   VARCHAR(16)  NULL COMMENT 'MK spectral class (e.g. A0V, G2III)',
   constellation   VARCHAR(16)  NULL,
   distance_ly     DECIMAL(12,3) NULL COMMENT 'distance in light years',
   discovered_by   VARCHAR(128) NULL,

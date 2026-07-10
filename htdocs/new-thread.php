@@ -35,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($is_proposal && $proposal_type === 'add_entry') {
                 $pst = $pdo->prepare('
                     INSERT INTO proposed_entries (thread_id, reply_id, author_id, name, catalog_id, entry_type,
-                        right_ascension, declination, apparent_mag, constellation, distance_ly, discovered_by, discovery_year, notes)
-                    VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        right_ascension, declination, apparent_mag, spectral_type, constellation, distance_ly, discovered_by, discovery_year, notes)
+                    VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ');
                 $pst->execute([
                     $thread_id, $user['id'],
@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     !empty($_POST['pe_ra']) ? $_POST['pe_ra'] : null,
                     !empty($_POST['pe_dec']) ? $_POST['pe_dec'] : null,
                     !empty($_POST['pe_mag']) ? $_POST['pe_mag'] : null,
+                    !empty($_POST['pe_spectral_type']) ? $_POST['pe_spectral_type'] : null,
                     !empty($_POST['pe_constellation']) ? $_POST['pe_constellation'] : null,
                     !empty($_POST['pe_distance']) ? $_POST['pe_distance'] : null,
                     !empty($_POST['pe_discoverer']) ? $_POST['pe_discoverer'] : null,
@@ -124,6 +125,7 @@ $all_entry_types = ['star','galaxy','nebula','emission_nebula','reflection_nebul
     <p><label>RA (J2000): <input type="text" name="pe_ra" size="16" placeholder="06:45:08.9"></label>
        <label>Dec: <input type="text" name="pe_dec" size="16" placeholder="-16:42:58"></label></p>
     <p><label>Mag: <input type="text" name="pe_mag" size="8"></label>
+       <label>Spectral type: <input type="text" name="pe_spectral_type" size="10" placeholder="A0V"></label>
        <label>Constellation: <input type="text" name="pe_constellation" size="8" placeholder="CMa"></label></p>
     <p><label>Distance (ly): <input type="text" name="pe_distance" size="12"></label></p>
     <p><label>Discoverer: <input type="text" name="pe_discoverer" size="30"></label>
@@ -142,7 +144,7 @@ $all_entry_types = ['star','galaxy','nebula','emission_nebula','reflection_nebul
         <?php endforeach; ?>
       </select>
     </label></p>
-    <p><label>Field: <input type="text" name="pfe_field" size="30" placeholder="apparent_mag"></label></p>
+    <p><label>Field: <input type="text" name="pfe_field" size="30" placeholder="apparent_mag, spectral_type"></label></p>
     <p><label>Old value: <input type="text" name="pfe_old_value" size="30"></label></p>
     <p><label>New value: <input type="text" name="pfe_new_value" size="30"></label></p>
   </div>

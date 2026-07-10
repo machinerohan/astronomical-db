@@ -313,6 +313,7 @@ for disambiguation). Each entry has:
 | right_ascension   | VARCHAR(16)     | J2000 sexagesimal (06:45:08.9)           |
 | declination       | VARCHAR(16)     | J2000 sexagesimal (−16:42:58)            |
 | apparent_mag      | DECIMAL(6,3)    | Apparent magnitude                       |
+| spectral_type     | VARCHAR(16)     | MK spectral class (A0V, G2III)           |
 | constellation     | VARCHAR(16)     | 3-letter abbreviation (CMa, And, Ori)    |
 | distance_ly       | DECIMAL(12,3)   | Distance in light-years                  |
 | discovered_by     | VARCHAR(128)    | Discoverer name                          |
@@ -399,6 +400,7 @@ CREATE TABLE objects (
   right_ascension VARCHAR(16) NULL,
   declination     VARCHAR(16) NULL,
   apparent_mag    DECIMAL(6,3) NULL,
+  spectral_type   VARCHAR(16) NULL,
   constellation   VARCHAR(16) NULL,
   distance_ly     DECIMAL(12,3) NULL,
   discovered_by   VARCHAR(128) NULL,
@@ -535,6 +537,7 @@ CREATE TABLE proposed_entries (
   right_ascension     VARCHAR(16) NULL,
   declination         VARCHAR(16) NULL,
   apparent_mag        DECIMAL(6,3) NULL,
+  spectral_type       VARCHAR(16) NULL,
   constellation       VARCHAR(16) NULL,
   distance_ly         DECIMAL(12,3) NULL,
   discovered_by       VARCHAR(128) NULL,

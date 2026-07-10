@@ -53,9 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if ($is_proposal && $thread['proposal_type'] === 'add_entry') {
                     $pst = $pdo->prepare('
                         INSERT INTO proposed_entries (thread_id, reply_id, author_id, name, catalog_id, entry_type,
-                            right_ascension, declination, apparent_mag, constellation, distance_ly, discovered_by, discovery_year, notes)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ');
+                        right_ascension, declination, apparent_mag, spectral_type, constellation, distance_ly, discovered_by, discovery_year, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ');
                     $pst->execute([
                         $id, $reply_id, $user['id'],
                         $_POST['pe_name'] ?? '', !empty($_POST['pe_catalog_id']) ? $_POST['pe_catalog_id'] : null,
@@ -63,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         !empty($_POST['pe_ra']) ? $_POST['pe_ra'] : null,
                         !empty($_POST['pe_dec']) ? $_POST['pe_dec'] : null,
                         !empty($_POST['pe_mag']) ? $_POST['pe_mag'] : null,
+                        !empty($_POST['pe_spectral_type']) ? $_POST['pe_spectral_type'] : null,
                         !empty($_POST['pe_constellation']) ? $_POST['pe_constellation'] : null,
                         !empty($_POST['pe_distance']) ? $_POST['pe_distance'] : null,
                         !empty($_POST['pe_discoverer']) ? $_POST['pe_discoverer'] : null,
@@ -175,19 +176,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if ($pe) {
                         $ins = $pdo->prepare('
                             INSERT INTO objects (name, catalog_id, entry_type, right_ascension, declination,
-                                apparent_mag, constellation, distance_ly, discovered_by, discovery_year, notes)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                apparent_mag, spectral_type, constellation, distance_ly, discovered_by, discovery_year, notes)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ');
                         $ins->execute([
                             $pe['name'], $pe['catalog_id'], $pe['entry_type'],
                             $pe['right_ascension'], $pe['declination'],
-                            $pe['apparent_mag'], $pe['constellation'], $pe['distance_ly'],
+                            $pe['apparent_mag'], $pe['spectral_type'], $pe['constellation'], $pe['distance_ly'],
                             $pe['discovered_by'], $pe['discovery_year'], $pe['notes'],
                         ]);
                         $new_entry_id = $pdo->lastInsertId();
 
                         $fields = ['name','catalog_id','entry_type','right_ascension','declination',
-                            'apparent_mag','constellation','distance_ly','discovered_by','discovery_year','notes'];
+                            'apparent_mag','spectral_type','constellation','distance_ly','discovered_by','discovery_year','notes'];
                         foreach ($fields as $f) {
                             if ($pe[$f] !== null && $pe[$f] !== '') {
                                 $pdo->prepare("
@@ -215,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if ($pfe && $pfe['entry_id']) {
                         $field = $pfe['field'];
                         $allowed = ['name','catalog_id','entry_type','right_ascension','declination',
-                            'apparent_mag','constellation','distance_ly','discovered_by','discovery_year','notes'];
+                            'apparent_mag','spectral_type','constellation','distance_ly','discovered_by','discovery_year','notes'];
 
                         if (in_array($field, $allowed)) {
                             $new_val = $pfe['new_value'];
@@ -254,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         if ($pr['target_field']) {
                             $field = $pr['target_field'];
                             $allowed = ['name','catalog_id','entry_type','right_ascension','declination',
-                                'apparent_mag','constellation','distance_ly','discovered_by','discovery_year','notes'];
+                                'apparent_mag','spectral_type','constellation','distance_ly','discovered_by','discovery_year','notes'];
 
                             if (in_array($field, $allowed)) {
                                 $stmt = $pdo->prepare("
@@ -477,7 +478,7 @@ $replies = $stmt->fetchAll();
           </select>
         </label></p>
         <p><label>RA: <input type="text" name="pe_ra" size="16"></label> <label>Dec: <input type="text" name="pe_dec" size="16"></label></p>
-        <p><label>Mag: <input type="text" name="pe_mag" size="8"></label> <label>Constellation: <input type="text" name="pe_constellation" size="8"></label></p>
+        <p><label>Mag: <input type="text" name="pe_mag" size="8"></label> <label>Spectral type: <input type="text" name="pe_spectral_type" size="10"></label> <label>Constellation: <input type="text" name="pe_constellation" size="8"></label></p>
         <p><label>Distance (ly): <input type="text" name="pe_distance" size="12"></label></p>
         <p><label>Discoverer: <input type="text" name="pe_discoverer" size="30"></label> <label>Year: <input type="number" name="pe_discovery_year" size="6"></label></p>
         <p><label>Notes: <br><textarea name="pe_notes" rows="4" cols="60"></textarea></label></p>

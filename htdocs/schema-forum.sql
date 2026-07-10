@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS proposed_entries (
   right_ascension     VARCHAR(16) NULL,
   declination         VARCHAR(16) NULL,
   apparent_mag        DECIMAL(6,3) NULL,
+  spectral_type       VARCHAR(16) NULL,
   constellation       VARCHAR(16) NULL,
   distance_ly         DECIMAL(12,3) NULL,
   discovered_by       VARCHAR(128) NULL,

@@ -32,6 +32,7 @@ $fields = [
     'Right Ascension (J2000)' => $entry['right_ascension'],
     'Declination (J2000)' => $entry['declination'],
     'Apparent Magnitude' => $entry['apparent_mag'],
+    'Spectral Type' => $entry['spectral_type'],
     'Constellation' => $entry['constellation'],
     'Distance (ly)' => $entry['distance_ly'],
     'Discovered by' => $entry['discovered_by'],
