@@ -6,10 +6,6 @@ if (is_logged_in()) {
     exit;
 }
 
-$page_title = 'Login';
-require_once __DIR__ . '/includes/header.php';
-
-$error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -21,6 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $error = 'Invalid username or password.';
 }
+
+$page_title = 'Login';
+require_once __DIR__ . '/includes/header.php';
 ?>
 <h1>Login</h1>
 <?php render_flash('error'); ?>
