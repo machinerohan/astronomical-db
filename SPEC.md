@@ -465,6 +465,11 @@ CREATE TABLE replies (
 
   FOREIGN KEY (author_id) REFERENCES users(id)
 );
+
+-- Performance indexes
+CREATE INDEX idx_replies_thread ON replies (thread_id);
+CREATE INDEX idx_replies_author ON replies (author_id);
+CREATE INDEX idx_replies_solution ON replies (is_solution);
 ```
 
 **threads**
@@ -504,6 +509,13 @@ CREATE TABLE threads (
   FOREIGN KEY (identified_entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (closed_by)            REFERENCES users(id)
 );
+
+-- Performance indexes
+CREATE INDEX idx_threads_category ON threads (category_id);
+CREATE INDEX idx_threads_status ON threads (status);
+CREATE INDEX idx_threads_proposal_status ON threads (proposal_status);
+CREATE INDEX idx_threads_is_accepted ON threads (is_accepted);
+CREATE INDEX idx_threads_author ON threads (author_id);
 
 -- Circular FK added after both tables exist:
 -- ALTER TABLE replies     ADD FOREIGN KEY (thread_id)      REFERENCES threads(id) ON DELETE CASCADE;
