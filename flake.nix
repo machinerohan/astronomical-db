@@ -54,7 +54,7 @@
             echo "║  AstroForum  —  dev environment           ║"
             echo "╠═══════════════════════════════════════════╣"
             echo "║  mysqld &      start MariaDB (background) ║"
-            echo "║  mysqladmin    shutdown                    ║"
+            echo "║  mysqladmin    shutdown                   ║"
             echo "║  mysql < db/schema.sql   load catalogue   ║"
             echo "║  mysql < htdocs/schema-forum.sql  forum   ║"
             echo "║  mysql < htdocs/schema-forum-seed.sql     ║"
