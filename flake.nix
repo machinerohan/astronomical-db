@@ -12,9 +12,16 @@
         pkgs = import nixpkgs { inherit system; };
 
         php = pkgs.php.withExtensions ({ all, ... }: with all; [
+          ctype
+          dom
+          filter
+          json
+          mbstring
           pdo
           pdo_mysql
           session
+          tokenizer
+          xmlwriter
         ]);
       in
       {

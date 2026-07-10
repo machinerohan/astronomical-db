@@ -7,3 +7,5 @@ known_hosts
 .mysql-data/
 .DS_Store
 *.swp
+.phpunit.cache/
+phpunit.phar
