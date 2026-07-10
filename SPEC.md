@@ -682,6 +682,7 @@ htdocs/
 │   ├── proposals.php         — Pending proposals queue
 │   └── contributions.php     — Browse contribution history
 ├── schema-forum.sql          — All forum tables (CREATE statements)
+├── schema-forum-seed.sql     — Seed data (users, categories, entry types)
 └── style.css                 — Stylesheet
 ```
 
