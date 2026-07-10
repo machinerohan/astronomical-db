@@ -609,8 +609,9 @@ CREATE TABLE entry_edits (
   FOREIGN KEY (reviewer_id)       REFERENCES users(id)
 );
 
--- Index for auto-demotion queries
+-- Performance indexes
 CREATE INDEX idx_entry_edits_target_author ON entry_edits (target_author_id, action);
+CREATE INDEX idx_entry_edits_entry ON entry_edits (entry_id);
 ```
 
 Row conventions:
