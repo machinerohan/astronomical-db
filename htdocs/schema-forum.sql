@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS categories (
   name          VARCHAR(64) NOT NULL,
   slug          VARCHAR(64) NOT NULL UNIQUE,
   description   VARCHAR(255) NULL,
+  is_proposal   BOOLEAN NOT NULL DEFAULT FALSE,
   sort_order    INT UNSIGNED NOT NULL DEFAULT 0,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -23,7 +24,8 @@ CREATE TABLE IF NOT EXISTS category_entry_types (
   entry_type   VARCHAR(64) NOT NULL,
   PRIMARY KEY (category_id, entry_type),
 
-  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+  INDEX idx_cet_entry_type (entry_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 3. Users

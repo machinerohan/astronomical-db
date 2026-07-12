@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($target_id === $user['id']) {
             $error = 'You cannot demote yourself.';
         } else {
-            $pdo->prepare("UPDATE users SET expertise = 'normal', admin_demoted_at = NOW() WHERE id = ? AND role = 'member'")
+            $pdo->prepare("UPDATE users SET expertise = 'normal', admin_demoted_at = COALESCE(admin_demoted_at, NOW()) WHERE id = ? AND role = 'member'")
                 ->execute([$target_id]);
             $pdo->prepare("INSERT INTO admin_actions (admin_id, action, target_type, target_id) VALUES (?, 'demote_user', 'user', ?)")
                 ->execute([$user['id'], $target_id]);
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $users = $pdo->query("SELECT * FROM users ORDER BY username")->fetchAll();
 ?>
 <h1>Manage Users</h1>
-<?php render_flash('error'); render_flash('success'); ?>
+<?php render_flash($error); render_flash($success, 'success'); ?>
 
 <table class="wide">
 <tr><th>ID</th><th>Username</th><th>Role</th><th>Expertise</th><th>Demoted At</th><th>Actions</th></tr>

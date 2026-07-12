@@ -6,6 +6,8 @@ if (is_logged_in()) {
     exit;
 }
 
+$error = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -22,7 +24,7 @@ $page_title = 'Login';
 require_once __DIR__ . '/includes/header.php';
 ?>
 <h1>Login</h1>
-<?php render_flash('error'); ?>
+<?php render_flash($error); ?>
 <form method="post">
 <p><label>Username: <br><input type="text" name="username" required></label></p>
 <p><label>Password: <br><input type="password" name="password" required></label></p>

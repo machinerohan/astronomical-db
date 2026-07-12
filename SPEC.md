@@ -43,18 +43,10 @@ catalogue filter keyed to the current category), but the category page
 itself is a thread listing — it does not implement a per-category
 catalogue sidebar.
 
-When a thread is created in a category that has mapped entry types,
-the system automatically links the thread to that catalogue type
-context. This includes both parent categories (regular discussion) and
-their proposal sub-categories (proposal threads). No dropdown picker
-needed.
-
 A thread in a proposal sub-category is always a proposal thread — the
 category determines the proposal type context, though the `proposal_type`
 column on the thread disambiguates between `add_entry`, `edit_field`,
 and `remove_entry`.
-
-New top-level categories and sub-categories can be added by an admin.
 
 ### 1.2 Threads
 
@@ -63,8 +55,10 @@ Threads are the basic unit of discussion. A thread has:
 - A title and body (body is plain text with reference syntax)
 - An author
 - A category (FK to `categories`)
-- An optional link to a catalogue entry (FK `identified_entry_id`) on
-  identification threads — set when a solution identifies a known object.
+- An optional link to a catalogue entry (FK `entry_id`) — set manually
+  to associate any thread with an entry.
+- An optional identification-specific link (FK `identified_entry_id`)
+  on identification threads — set when a solution identifies a known object.
 - A status: `open` or `closed`
 - `is_accepted` boolean — set if the OP's initial post is selected as
   the approved proposal data (see §1.5).
@@ -245,6 +239,8 @@ Each user profile shows:
 - Contribution stats (threads started, solutions provided, proposals
   submitted, approved proposals, proposals that led to removals)
 - Date joined
+- Recent threads (last 10)
+- Recent replies (last 10, with body preview)
 - Link to change password (for the account owner)
 
 ### 2.6 Auto-promotion (expert)
@@ -365,6 +361,7 @@ An entry's detail page shows:
 - Every approved edit that changed it
 - Every resolved identification linked to it
 - Any removals applied to it and why
+- Any thread that links to it via `entry_id` or `identified_entry_id`
 
 ### 3.4 Proposal-data tables
 
@@ -424,6 +421,7 @@ CREATE TABLE categories (
   name          VARCHAR(64) NOT NULL,
   slug          VARCHAR(64) NOT NULL UNIQUE,
   description   VARCHAR(255) NULL,
+  is_proposal   BOOLEAN NOT NULL DEFAULT FALSE,
   sort_order    INT UNSIGNED NOT NULL DEFAULT 0,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -484,6 +482,7 @@ CREATE TABLE threads (
   title                 VARCHAR(255) NOT NULL,
   body                  TEXT NOT NULL,
   author_id             INT UNSIGNED NOT NULL,
+  entry_id              INT UNSIGNED NULL COMMENT 'direct link to a catalogue entry',
   status                ENUM('open','closed') NOT NULL DEFAULT 'open',
   is_accepted           BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'True if OP proposal data was approved',
 
@@ -507,6 +506,7 @@ CREATE TABLE threads (
 
   FOREIGN KEY (category_id)          REFERENCES categories(id),
   FOREIGN KEY (author_id)            REFERENCES users(id),
+  FOREIGN KEY (entry_id)             REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (reviewer_id)          REFERENCES users(id),
   FOREIGN KEY (identified_entry_id)  REFERENCES objects(id) ON DELETE SET NULL,
   FOREIGN KEY (closed_by)            REFERENCES users(id)

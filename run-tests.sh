@@ -15,7 +15,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Install & start MySQL
-mysql_install_db --datadir="$MYSQL_DATADIR" --user=dietpi 2>/dev/null
+mysql_install_db --datadir="$MYSQL_DATADIR" --auth-root-authentication-method=normal 2>/dev/null
 mysqld --datadir="$MYSQL_DATADIR" --socket="$MYSQL_SOCK" --port=3307 --bind-address=127.0.0.1 --skip-grant-tables &
 MYSQL_PID=$!
 

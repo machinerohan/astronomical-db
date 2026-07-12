@@ -5,7 +5,7 @@ $q = $_GET['q'] ?? '';
 if (!$q) { header('Location: catalogue.php'); exit; }
 
 $entry = find_object($pdo, $q);
-if (!$entry) { header('HTTP/1.1 404 Not Found'); echo 'Entry not found.'; exit; }
+if (!$entry) { http_response_code(404); echo 'Entry not found.'; exit; }
 
 if ($entry['status'] === 'deleted') {
     $page_title = $entry['name'] . ' [Deleted]';
@@ -15,7 +15,7 @@ if ($entry['status'] === 'deleted') {
 require_once __DIR__ . '/includes/header.php';
 
 $fields = [];
-foreach ($ENTRY_FIELD_LABELS as $col => $label) {
+foreach (ENTRY_FIELD_LABELS as $col => $label) {
     if ($col === 'notes') continue;
     $fields[$label] = $entry[$col];
 }

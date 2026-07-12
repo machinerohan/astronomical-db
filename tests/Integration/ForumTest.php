@@ -17,6 +17,7 @@ class ForumTest extends TestCase
 
         $threadId = (int) $this->pdo->lastInsertId();
 
+        $_POST['pe_name'] = 'Test Entry';
         \insert_proposal_data($this->pdo, $threadId, null, 1, 'add_entry');
 
         $stmt = $this->pdo->prepare('SELECT * FROM proposed_entries WHERE thread_id = ?');
@@ -44,6 +45,7 @@ class ForumTest extends TestCase
 
         $replyId = (int) $this->pdo->lastInsertId();
 
+        $_POST['pe_name'] = 'Test Entry';
         \insert_proposal_data($this->pdo, $threadId, $replyId, 1, 'add_entry');
 
         $stmt = $this->pdo->prepare('SELECT * FROM proposed_entries WHERE thread_id = ? AND reply_id = ?');

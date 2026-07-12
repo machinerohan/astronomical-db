@@ -15,7 +15,6 @@
           ctype
           dom
           filter
-          json
           mbstring
           pdo
           pdo_mysql

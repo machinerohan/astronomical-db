@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <h1>Change Password</h1>
-<?php render_flash('error'); render_flash('success'); ?>
+<?php render_flash($error); render_flash($success, 'success'); ?>
 <form method="post">
 <p><label>Current password: <br><input type="password" name="current_password" required></label></p>
 <p><label>New password: <br><input type="password" name="new_password" required></label></p>

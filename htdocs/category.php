@@ -5,12 +5,12 @@ $slug = $_GET['slug'] ?? '';
 $stmt = $pdo->prepare('SELECT * FROM categories WHERE slug = ?');
 $stmt->execute([$slug]);
 $cat = $stmt->fetch();
-if (!$cat) { header('HTTP/1.1 404 Not Found'); echo 'Category not found.'; exit; }
+if (!$cat) { http_response_code(404); echo 'Category not found.'; exit; }
 
 $page_title = $cat['name'];
 require_once __DIR__ . '/includes/header.php';
 
-$is_proposal = $cat['parent_id'] !== null;
+$is_proposal = $cat['is_proposal'];
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 20;
 $offset = ($page - 1) * $per_page;

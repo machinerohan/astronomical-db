@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <h1>Create User</h1>
-<?php render_flash('error'); render_flash('success'); ?>
+<?php render_flash($error); render_flash($success, 'success'); ?>
 <form method="post">
 <p><label>Username: <br><input type="text" name="username" required></label></p>
 <p><label>Password: <br><input type="text" name="password" required></label></p>

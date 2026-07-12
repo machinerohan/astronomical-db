@@ -12,7 +12,7 @@ $offset = ($page - 1) * $per_page;
 $total = $pdo->query("SELECT COUNT(*) FROM entry_edits")->fetchColumn();
 $total_pages = max(1, ceil($total / $per_page));
 
-$edits = $pdo->query("
+$stmt = $pdo->prepare("
     SELECT ee.*, u.username AS reviewer_name,
         o.name AS entry_name, t.title AS thread_title
     FROM entry_edits ee
@@ -20,8 +20,10 @@ $edits = $pdo->query("
     LEFT JOIN objects o ON o.id = ee.entry_id
     JOIN threads t ON t.id = ee.thread_id
     ORDER BY ee.created_at DESC
-    LIMIT $per_page OFFSET $offset
-")->fetchAll();
+    LIMIT ? OFFSET ?
+");
+$stmt->execute([$per_page, $offset]);
+$edits = $stmt->fetchAll();
 ?>
 <h1>Contribution History</h1>
 

@@ -5,7 +5,7 @@ $username = $_GET['username'] ?? ($_SESSION['user_username'] ?? '');
 $stmt = $pdo->prepare('SELECT * FROM users WHERE username = ?');
 $stmt->execute([$username]);
 $prof = $stmt->fetch();
-if (!$prof) { header('HTTP/1.1 404 Not Found'); echo 'User not found.'; exit; }
+if (!$prof) { http_response_code(404); echo 'User not found.'; exit; }
 
 $page_title = $prof['username'] . ' — Profile';
 require_once __DIR__ . '/includes/header.php';
@@ -51,6 +51,57 @@ $net = $approved - $removed;
 <tr><td>Removed contributions</td><td><?= $removed ?></td></tr>
 <tr><td><strong>Net score</strong></td><td><strong><?= $net ?></strong></td></tr>
 </table>
+
+<h2>Recent Threads</h2>
+<?php
+$stmt = $pdo->prepare("
+    SELECT t.id, t.title, t.created_at, c.name AS category_name
+    FROM threads t
+    JOIN categories c ON c.id = t.category_id
+    WHERE t.author_id = ?
+    ORDER BY t.created_at DESC
+    LIMIT 10
+");
+$stmt->execute([$prof['id']]);
+$recent_threads = $stmt->fetchAll();
+?>
+<?php if (empty($recent_threads)): ?>
+  <p>No threads yet.</p>
+<?php else: ?>
+  <ul>
+  <?php foreach ($recent_threads as $t): ?>
+    <li><a href="thread.php?id=<?= $t['id'] ?>"><?= h($t['title']) ?></a>
+      &mdash; <?= h($t['category_name']) ?> &mdash; <?= time_ago($t['created_at']) ?></li>
+  <?php endforeach; ?>
+  </ul>
+<?php endif; ?>
+
+<h2>Recent Replies</h2>
+<?php
+$stmt = $pdo->prepare("
+    SELECT r.id, r.created_at, t.id AS thread_id, t.title AS thread_title,
+        c.name AS category_name, SUBSTRING(r.body, 1, 200) AS body_preview
+    FROM replies r
+    JOIN threads t ON t.id = r.thread_id
+    JOIN categories c ON c.id = t.category_id
+    WHERE r.author_id = ?
+    ORDER BY r.created_at DESC
+    LIMIT 10
+");
+$stmt->execute([$prof['id']]);
+$recent_replies = $stmt->fetchAll();
+?>
+<?php if (empty($recent_replies)): ?>
+  <p>No replies yet.</p>
+<?php else: ?>
+  <ul>
+  <?php foreach ($recent_replies as $r): ?>
+    <li><a href="thread.php?id=<?= $r['thread_id'] ?>"><?= h($r['thread_title']) ?></a>
+      &mdash; <?= h($r['category_name']) ?> &mdash; <?= time_ago($r['created_at']) ?>
+      <br><small><?= h($r['body_preview']) ?><?= strlen($r['body_preview']) >= 200 ? '…' : '' ?></small></li>
+  <?php endforeach; ?>
+  </ul>
+<?php endif; ?>
 
 <?php if (is_logged_in() && $_SESSION['user_id'] === $prof['id']): ?>
   <p><a href="change-password.php">Change password</a></p>

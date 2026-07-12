@@ -6,9 +6,9 @@ $slug = $_GET['category'] ?? '';
 $stmt = $pdo->prepare('SELECT * FROM categories WHERE slug = ?');
 $stmt->execute([$slug]);
 $cat = $stmt->fetch();
-if (!$cat) { echo 'Category not found.'; exit; }
+if (!$cat) { http_response_code(404); echo 'Category not found.'; exit; }
 
-$is_proposal = $cat['parent_id'] !== null;
+$is_proposal = $cat['is_proposal'];
 $user = current_user($pdo);
 $error = '';
 
@@ -51,13 +51,18 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 <h1>New Thread in <?= h($cat['name']) ?></h1>
 
-<?php render_flash('error'); ?>
+<?php render_flash($error); ?>
 
 <form method="post">
 <p><label>Title: <br><input type="text" name="title" size="60" required></label></p>
 <p><label>Body: <br><textarea name="body" rows="12" cols="70" required></textarea></label></p>
 <p><small>Reference syntax: @username, @entry:Sirius, @thread:42, @reply:123</small></p>
 
+<?php
+$stmt = $pdo->prepare("SELECT entry_type FROM category_entry_types WHERE category_id = ?");
+$stmt->execute([$cat['id']]);
+$allowed_types = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: ENTRY_TYPES;
+?>
 <?php if ($is_proposal): ?>
   <hr>
   <p><label>Proposal type:
@@ -68,56 +73,11 @@ require_once __DIR__ . '/includes/header.php';
     </select>
   </label></p>
 
-  <div id="add_entry_fields">
-    <h3>New Entry Data</h3>
-    <p><label>Name: <input type="text" name="pe_name" size="40"></label></p>
-    <p><label>Catalog ID: <input type="text" name="pe_catalog_id" size="20"></label></p>
-    <p><label>Entry type:
-      <select name="pe_entry_type">
-        <?php foreach ($ENTRY_TYPES as $et): ?>
-          <option value="<?= h($et) ?>"><?= h($et) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </label></p>
-    <p><label>RA (J2000): <input type="text" name="pe_right_ascension" size="16" placeholder="06:45:08.9"></label>
-       <label>Dec: <input type="text" name="pe_declination" size="16" placeholder="-16:42:58"></label></p>
-    <p><label>Mag: <input type="text" name="pe_apparent_mag" size="8"></label>
-       <label>Spectral type: <input type="text" name="pe_spectral_type" size="10" placeholder="A0V"></label>
-       <label>Constellation: <input type="text" name="pe_constellation" size="8" placeholder="CMa"></label></p>
-    <p><label>Distance (ly): <input type="text" name="pe_distance_ly" size="12"></label></p>
-    <p><label>Discoverer: <input type="text" name="pe_discovered_by" size="30"></label>
-       <label>Year: <input type="number" name="pe_discovery_year" size="6"></label></p>
-    <p><label>Notes: <br><textarea name="pe_notes" rows="4" cols="60"></textarea></label></p>
-  </div>
-
-  <div id="edit_field_fields" style="display:none">
-    <h3>Edit Field</h3>
-    <p><label>Target entry:
-      <select name="pfe_entry_id">
-        <?php
-        $entries = $pdo->query("SELECT id, name, catalog_id FROM objects WHERE status='active' ORDER BY name")->fetchAll();
-        foreach ($entries as $e): ?>
-          <option value="<?= $e['id'] ?>"><?= h($e['name']) ?> (<?= h($e['catalog_id'] ?? 'no cat') ?>)</option>
-        <?php endforeach; ?>
-      </select>
-    </label></p>
-    <p><label>Field: <input type="text" name="pfe_field" size="30" placeholder="apparent_mag, spectral_type"></label></p>
-    <p><label>Old value: <input type="text" name="pfe_old_value" size="30"></label></p>
-    <p><label>New value: <input type="text" name="pfe_new_value" size="30"></label></p>
-  </div>
-
-  <div id="remove_entry_fields" style="display:none">
-    <h3>Remove Entry / Revert Field</h3>
-    <p><label>Target entry:
-      <select name="pr_entry_id">
-        <?php foreach ($entries as $e): ?>
-          <option value="<?= $e['id'] ?>"><?= h($e['name']) ?> (<?= h($e['catalog_id'] ?? 'no cat') ?>)</option>
-        <?php endforeach; ?>
-      </select>
-    </label></p>
-    <p><label>Specific field to revert (leave empty for full removal): <input type="text" name="pr_target_field" size="30"></label></p>
-    <p><label>Reason: <br><textarea name="pr_reason" rows="3" cols="60"></textarea></label></p>
-  </div>
+  <?php
+  $entries = $pdo->query("SELECT id, name, catalog_id FROM objects WHERE status='active' ORDER BY name")->fetchAll();
+  $show_type = 'add_entry';
+  ?>
+  <?php require __DIR__ . '/includes/proposal-fields.php'; ?>
 
   <script>
   document.getElementById('proposal_type').addEventListener('change', function() {

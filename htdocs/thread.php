@@ -16,14 +16,14 @@ if ($rid > 0) {
 }
 
 $stmt = $pdo->prepare('SELECT t.*, u.username AS author_name, u.role AS author_role, u.expertise AS author_expertise,
-    cat.slug AS category_slug, cat.name AS category_name, cat.parent_id AS category_parent_id
+    cat.slug AS category_slug, cat.name AS category_name
     FROM threads t
     JOIN users u ON u.id = t.author_id
     JOIN categories cat ON cat.id = t.category_id
     WHERE t.id = ?');
 $stmt->execute([$id]);
 $thread = $stmt->fetch();
-if (!$thread) { header('HTTP/1.1 404 Not Found'); echo 'Thread not found.'; exit; }
+if (!$thread) { http_response_code(404); echo 'Thread not found.'; exit; }
 
 $user = current_user($pdo);
 $is_proposal = $thread['proposal_type'] !== null;
@@ -131,14 +131,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $pe = $stmt->fetch();
 
                     if ($pe) {
-                        $cols = implode(', ', $ENTRY_FIELD_COLUMNS);
-                        $phs = implode(', ', array_fill(0, count($ENTRY_FIELD_COLUMNS), '?'));
+                        $cols = implode(', ', ENTRY_FIELD_COLUMNS);
+                        $phs = implode(', ', array_fill(0, count(ENTRY_FIELD_COLUMNS), '?'));
                         $ins = $pdo->prepare("INSERT INTO objects ($cols) VALUES ($phs)");
-                        $vals = array_map(fn($f) => $pe[$f], $ENTRY_FIELD_COLUMNS);
+                        $vals = array_map(fn($f) => $pe[$f], ENTRY_FIELD_COLUMNS);
                         $ins->execute($vals);
                         $new_entry_id = $pdo->lastInsertId();
 
-                        foreach ($ENTRY_FIELD_COLUMNS as $f) {
+                        foreach (ENTRY_FIELD_COLUMNS as $f) {
                             if ($pe[$f] !== null && $pe[$f] !== '') {
                                 $pdo->prepare("
                                     INSERT INTO entry_edits (entry_id, thread_id, reply_id, target_author_id,
@@ -148,10 +148,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             }
                         }
 
-                        if ($thread['identified_entry_id'] === null && $thread['parent_reply_id']) {
-                            $pdo->prepare('UPDATE threads SET identified_entry_id = ? WHERE id = ?')
-                                ->execute([$new_entry_id, $id]);
-                        }
                     }
                 } elseif ($thread['proposal_type'] === 'edit_field') {
                     $stmt = $pdo->prepare('
@@ -164,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                     if ($pfe && $pfe['entry_id']) {
                         $field = $pfe['field'];
-                        $allowed = $ENTRY_FIELD_COLUMNS;
+                        $allowed = ENTRY_FIELD_COLUMNS;
 
                         if (in_array($field, $allowed)) {
                             $new_val = $pfe['new_value'];
@@ -202,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if ($pr && $pr['entry_id']) {
                         if ($pr['target_field']) {
                             $field = $pr['target_field'];
-                            $allowed = $ENTRY_FIELD_COLUMNS;
+                            $allowed = ENTRY_FIELD_COLUMNS;
 
                             if (in_array($field, $allowed)) {
                                 $stmt = $pdo->prepare("
@@ -265,6 +261,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 }
 
+                $discussion_id = null;
+                if ($thread['proposal_type'] === 'add_entry' && !empty($pe)) {
+                    $nstmt = $pdo->prepare("
+                        SELECT c.id FROM categories c
+                        JOIN category_entry_types cet ON cet.category_id = c.id
+                        WHERE cet.entry_type = ? AND c.is_proposal = FALSE
+                        ORDER BY c.sort_order LIMIT 1
+                    ");
+                    $nstmt->execute([$pe['entry_type']]);
+                    $cat_id = $nstmt->fetchColumn();
+                    if ($cat_id) {
+                        $lines = ["A new entry has been added to the catalogue:\n"];
+                        foreach (ENTRY_FIELD_COLUMNS as $col) {
+                            if (!empty($pe[$col])) {
+                                $lines[] = '**' . (ENTRY_FIELD_LABELS[$col] ?? $col) . ':** ' . $pe[$col];
+                            }
+                        }
+                        $lines[] = '';
+                        $lines[] = 'View entry: @entry:' . $pe['name'];
+                        $pdo->prepare("INSERT INTO threads (category_id, title, body, author_id, entry_id, status) VALUES (?, ?, ?, ?, ?, 'open')")
+                            ->execute([$cat_id, 'New entry: ' . $pe['name'], implode("\n", $lines), $user['id'], $new_entry_id ?? null]);
+                        $discussion_id = $pdo->lastInsertId();
+                    }
+                } elseif ($thread['proposal_type'] === 'edit_field' && !empty($pfe) && !empty($pfe['entry_id'])) {
+                    $nstmt = $pdo->prepare("SELECT name, entry_type FROM objects WHERE id = ?");
+                    $nstmt->execute([$pfe['entry_id']]);
+                    $obj = $nstmt->fetch();
+                    if ($obj) {
+                        $nstmt = $pdo->prepare("
+                            SELECT c.id FROM categories c
+                            JOIN category_entry_types cet ON cet.category_id = c.id
+                            WHERE cet.entry_type = ? AND c.is_proposal = FALSE
+                            ORDER BY c.sort_order LIMIT 1
+                        ");
+                        $nstmt->execute([$obj['entry_type']]);
+                        $cat_id = $nstmt->fetchColumn();
+                        if ($cat_id) {
+                            $title = $obj['name'] . ' — field edited (' . $pfe['field'] . ')';
+                            $body = '**' . $obj['name'] . '** (@entry:' . $obj['name'] . ') — field edit'
+                                  . "\n\n**Field:** " . $pfe['field']
+                                  . "\n**New value:** " . ($pfe['new_value'] ?? '');
+                            if (!empty($pfe['old_value'])) {
+                                $body .= "\n**Old value:** " . $pfe['old_value'];
+                            }
+                            $pdo->prepare("INSERT INTO threads (category_id, title, body, author_id, entry_id, status) VALUES (?, ?, ?, ?, ?, 'open')")
+                                ->execute([$cat_id, $title, $body, $user['id'], $pfe['entry_id']]);
+                            $discussion_id = $pdo->lastInsertId();
+                        }
+                    }
+                } elseif ($thread['proposal_type'] === 'remove_entry' && !empty($pr) && !empty($pr['entry_id'])) {
+                    $nstmt = $pdo->prepare("SELECT name, entry_type FROM objects WHERE id = ?");
+                    $nstmt->execute([$pr['entry_id']]);
+                    $obj = $nstmt->fetch();
+                    if ($obj) {
+                        $nstmt = $pdo->prepare("
+                            SELECT c.id FROM categories c
+                            JOIN category_entry_types cet ON cet.category_id = c.id
+                            WHERE cet.entry_type = ? AND c.is_proposal = FALSE
+                            ORDER BY c.sort_order LIMIT 1
+                        ");
+                        $nstmt->execute([$obj['entry_type']]);
+                        $cat_id = $nstmt->fetchColumn();
+                        if ($cat_id) {
+                            if ($pr['target_field']) {
+                                $title = $obj['name'] . ' — field reverted (' . $pr['target_field'] . ')';
+                                $body = '**' . $obj['name'] . '** (@entry:' . $obj['name'] . ') — field reverted'
+                                      . "\n\n**Field:** " . $pr['target_field'];
+                            } else {
+                                $title = $obj['name'] . ' — removed from catalogue';
+                                $body = '**' . $obj['name'] . '** (@entry:' . $obj['name'] . ') has been removed from the catalogue.';
+                            }
+                            if (!empty($pr['reason'])) {
+                                $body .= "\n**Reason:** " . $pr['reason'];
+                            }
+                            $pdo->prepare("INSERT INTO threads (category_id, title, body, author_id, entry_id, status) VALUES (?, ?, ?, ?, ?, 'open')")
+                                ->execute([$cat_id, $title, $body, $user['id'], $pr['entry_id']]);
+                            $discussion_id = $pdo->lastInsertId();
+                        }
+                    }
+                }
+
+                if ($discussion_id) {
+                    $pdo->prepare("INSERT INTO replies (thread_id, body, author_id) VALUES (?, ?, ?)")
+                        ->execute([$id, 'This proposal has been approved. See discussion at @thread:' . $discussion_id, $user['id']]);
+                }
+
                 $pdo->commit();
                 $success = 'Proposal approved.';
                 $stmt = $pdo->prepare('SELECT * FROM threads WHERE id = ?');
@@ -278,6 +360,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'reject_proposal' && $is_proposal && $user && can_approve_proposals($user)) {
+        if ($thread['proposal_type'] === 'remove_entry' && !can_approve_removals($user)) {
+            $error = 'Only verified users and admins can reject removals.';
+        } else {
         $pdo->prepare("
             UPDATE threads SET proposal_status = 'rejected', reviewer_id = ?, reviewed_at = NOW(),
                 status = 'closed', closed_by = ?, closed_reason = 'Proposal rejected'
@@ -288,6 +373,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $stmt = $pdo->prepare('SELECT * FROM threads WHERE id = ?');
         $stmt->execute([$id]);
         $thread = $stmt->fetch();
+        }
+    }
+
+    if ($success && !$error) {
+        $_SESSION['flash'] = $success;
+        session_write_close();
+        header('Location: thread.php?id=' . $id);
+        exit;
     }
 }
 
@@ -305,7 +398,7 @@ require_once __DIR__ . '/includes/header.php';
 </p>
 
 <div style="border:1px solid #ccc;padding:12px;margin:12px 0;background:#f9f9f9">
-  <?= render_body($pdo, $thread['body']) ?>
+  <?= render_body($thread['body']) ?>
 </div>
 
 <?php if ($is_proposal): ?>
@@ -360,7 +453,7 @@ require_once __DIR__ . '/includes/header.php';
   <p><strong>Closed:</strong> <?= h($thread['closed_reason']) ?></p>
 <?php endif; ?>
 
-<?php render_flash('success'); render_flash('error'); ?>
+<?php render_flash($success, 'success'); render_flash($error); ?>
 
 <h2>Replies</h2>
 
@@ -386,7 +479,7 @@ $replies = $stmt->fetchAll();
         &mdash; <?= time_ago($reply['created_at']) ?>
         <?php if ($reply['is_solution']): ?><strong style="color:green">[Solution]</strong><?php endif; ?>
       </p>
-      <div><?= render_body($pdo, $reply['body']) ?></div>
+      <div><?= render_body($reply['body']) ?></div>
 
       <?php if ($is_ident && $thread['status'] === 'open' && $user && ($user['id'] === $thread['author_id'] || $user['role'] === 'admin') && !$reply['is_solution']): ?>
         <form method="post" style="margin-top:4px">
@@ -406,51 +499,16 @@ $replies = $stmt->fetchAll();
     <p><textarea name="body" rows="8" cols="70" required></textarea></p>
     <p><small>Reference syntax: @username, @entry:Sirius, @thread:42, @reply:123</small></p>
 
-    <?php if ($is_proposal): ?>
+      <?php if ($is_proposal): ?>
       <hr>
-      <?php if ($thread['proposal_type'] === 'add_entry'): ?>
-        <h3>Proposed Entry Data (optional)</h3>
-        <p><label>Name: <input type="text" name="pe_name" size="40"></label></p>
-        <p><label>Catalog ID: <input type="text" name="pe_catalog_id" size="20"></label></p>
-        <p><label>Entry type:
-          <select name="pe_entry_type">
-            <?php
-            foreach ($ENTRY_TYPES as $t): ?>
-              <option value="<?= h($t) ?>"><?= h($t) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label></p>
-        <p><label>RA: <input type="text" name="pe_right_ascension" size="16"></label> <label>Dec: <input type="text" name="pe_declination" size="16"></label></p>
-        <p><label>Mag: <input type="text" name="pe_apparent_mag" size="8"></label> <label>Spectral type: <input type="text" name="pe_spectral_type" size="10"></label> <label>Constellation: <input type="text" name="pe_constellation" size="8"></label></p>
-        <p><label>Distance (ly): <input type="text" name="pe_distance_ly" size="12"></label></p>
-        <p><label>Discoverer: <input type="text" name="pe_discovered_by" size="30"></label> <label>Year: <input type="number" name="pe_discovery_year" size="6"></label></p>
-        <p><label>Notes: <br><textarea name="pe_notes" rows="4" cols="60"></textarea></label></p>
-      <?php elseif ($thread['proposal_type'] === 'edit_field'): ?>
-        <h3>Proposed Field Edit (optional)</h3>
-        <p><label>Target entry:
-          <select name="pfe_entry_id">
-            <?php
-            $entries = $pdo->query("SELECT id, name, catalog_id FROM objects WHERE status='active' ORDER BY name")->fetchAll();
-            foreach ($entries as $e): ?>
-              <option value="<?= $e['id'] ?>"><?= h($e['name']) ?> (<?= h($e['catalog_id'] ?? '') ?>)</option>
-            <?php endforeach; ?>
-          </select>
-        </label></p>
-        <p><label>Field: <input type="text" name="pfe_field" size="30"></label></p>
-        <p><label>Old value: <input type="text" name="pfe_old_value" size="30"></label></p>
-        <p><label>New value: <input type="text" name="pfe_new_value" size="30"></label></p>
-      <?php elseif ($thread['proposal_type'] === 'remove_entry'): ?>
-        <h3>Proposed Removal (optional)</h3>
-        <p><label>Target entry:
-          <select name="pr_entry_id">
-            <?php foreach ($entries as $e): ?>
-              <option value="<?= $e['id'] ?>"><?= h($e['name']) ?> (<?= h($e['catalog_id'] ?? '') ?>)</option>
-            <?php endforeach; ?>
-          </select>
-        </label></p>
-        <p><label>Specific field to revert: <input type="text" name="pr_target_field" size="30"></label></p>
-        <p><label>Reason: <br><textarea name="pr_reason" rows="3" cols="60"></textarea></label></p>
-      <?php endif; ?>
+      <?php
+      $stmt = $pdo->prepare("SELECT entry_type FROM category_entry_types WHERE category_id = ?");
+      $stmt->execute([$thread['category_id']]);
+      $allowed_types = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: ENTRY_TYPES;
+      $entries = $pdo->query("SELECT id, name, catalog_id FROM objects WHERE status='active' ORDER BY name")->fetchAll();
+      $show_type = $thread['proposal_type'];
+      require __DIR__ . '/includes/proposal-fields.php';
+      ?>
     <?php endif; ?>
 
     <p><input type="submit" value="Post Reply"></p>

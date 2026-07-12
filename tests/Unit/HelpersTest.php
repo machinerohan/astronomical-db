@@ -28,31 +28,31 @@ class HelpersTest extends TestCase
 
     public function test_render_body_escapes_html(): void
     {
-        $result = \render_body($this->pdo, '<b>bold</b>');
+        $result = \render_body('<b>bold</b>');
         $this->assertStringContainsString('&lt;b&gt;bold&lt;/b&gt;', $result);
     }
 
     public function test_render_body_converts_username_mention(): void
     {
-        $result = \render_body($this->pdo, 'Hello @admin');
+        $result = \render_body('Hello @admin');
         $this->assertStringContainsString('<a href="profile.php?username=admin">@admin</a>', $result);
     }
 
     public function test_render_body_converts_entry_mention(): void
     {
-        $result = \render_body($this->pdo, 'See @entry:Sirius');
+        $result = \render_body('See @entry:Sirius');
         $this->assertStringContainsString('<a href="entry.php?q=Sirius">@entry:Sirius</a>', $result);
     }
 
     public function test_render_body_converts_thread_mention(): void
     {
-        $result = \render_body($this->pdo, 'See @thread:1');
+        $result = \render_body('See @thread:1');
         $this->assertStringContainsString('<a href="thread.php?id=1">@thread:1</a>', $result);
     }
 
     public function test_render_body_does_not_mention_email(): void
     {
-        $result = \render_body($this->pdo, 'user@example.com');
+        $result = \render_body('user@example.com');
         $this->assertStringNotContainsString('<a href="profile.php?username=user@example.com">', $result);
     }
 
@@ -80,15 +80,13 @@ class HelpersTest extends TestCase
         $this->assertSame('2d ago', $result);
     }
 
-    public function test_is_proposal_category_returns_false_for_root_category(): void
+    public function test_is_proposal_category_returns_false_for_discussion_category(): void
     {
-        // Category 1 (General) has no parent_id
-        $this->assertFalse(\is_proposal_category($this->pdo, 1));
+        $this->assertFalse(\is_proposal_category($this->pdo, 1)); // General
     }
 
-    public function test_is_proposal_category_returns_true_for_proposals_subcategory(): void
+    public function test_is_proposal_category_returns_true_for_proposals_category(): void
     {
-        // Category 4 (Stars — Proposals) has a parent_id
-        $this->assertTrue(\is_proposal_category($this->pdo, 4));
+        $this->assertTrue(\is_proposal_category($this->pdo, 8)); // Proposals
     }
 }

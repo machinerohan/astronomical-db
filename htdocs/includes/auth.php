@@ -75,6 +75,7 @@ function recalculate_expertise(PDO $pdo, int $user_id): void {
 
     $positive = count_approved($pdo, 'proposed_entries', 'author_id', $user_id);
     $positive += count_approved($pdo, 'proposed_field_edits', 'author_id', $user_id);
+    $pos2 = $pdo->prepare("SELECT COUNT(*) FROM threads WHERE author_id = ? AND is_accepted = 1");
     $pos2->execute([$user_id]);
     $positive += (int)$pos2->fetchColumn();
 

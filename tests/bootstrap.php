@@ -6,10 +6,7 @@ error_reporting(E_ALL);
 require_once __DIR__ . '/../htdocs/includes/auth.php';
 require_once __DIR__ . '/../htdocs/includes/functions.php';
 
-// Ensure file-scope globals are registered in $GLOBALS
-$GLOBALS['ENTRY_FIELD_COLUMNS'] = $ENTRY_FIELD_COLUMNS;
-$GLOBALS['ENTRY_FIELD_LABELS'] = $ENTRY_FIELD_LABELS;
-$GLOBALS['ENTRY_TYPES'] = $ENTRY_TYPES;
+// Constants are defined in functions.php via require_once
 
 // Register PSR-4-like autoloading for Tests\ namespace
 spl_autoload_register(function (string $class): void {

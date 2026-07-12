@@ -28,9 +28,10 @@ class CatalogueTest extends TestCase
 
     public function test_find_object_with_custom_select(): void
     {
-        $obj = \find_object($this->pdo, 'Sirius', 'name, apparent_mag');
+        $obj = \find_object($this->pdo, 'Sirius', 'name');
         $this->assertNotNull($obj);
-        $this->assertArrayHasKey('apparent_mag', $obj);
+        $this->assertArrayHasKey('name', $obj);
+        $this->assertArrayNotHasKey('apparent_mag', $obj);
     }
 
     public function test_sirius_apparent_magnitude(): void
@@ -55,14 +56,11 @@ class CatalogueTest extends TestCase
 
     public function test_is_proposal_category_known(): void
     {
-        // Categories with parent_id are proposal sub-categories
-        $this->assertTrue(\is_proposal_category($this->pdo, 4)); // Stars — Proposals
-        $this->assertTrue(\is_proposal_category($this->pdo, 8)); // Galaxies — Proposals
+        $this->assertTrue(\is_proposal_category($this->pdo, 8)); // Proposals
     }
 
     public function test_is_proposal_category_non_proposal(): void
     {
-        // Root categories have no parent_id
         $this->assertFalse(\is_proposal_category($this->pdo, 1)); // General
         $this->assertFalse(\is_proposal_category($this->pdo, 3)); // Stars
     }

@@ -1,5 +1,4 @@
 .env
-.gitconfig
 *.key
 *.pem
 id_*

@@ -4,7 +4,7 @@ function h(?string $s): string {
     return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-function render_body(PDO $pdo, string $text): string {
+function render_body(string $text): string {
     $text = h($text);
 
     $text = preg_replace('/(?<=\s|^)@(?!entry:|thread:|reply:)([A-Za-z0-9_]+)/',
@@ -56,20 +56,23 @@ function flash_redirect(): ?string {
 }
 
 function is_proposal_category(PDO $pdo, int $category_id): bool {
-    $stmt = $pdo->prepare('SELECT parent_id FROM categories WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT is_proposal FROM categories WHERE id = ?');
     $stmt->execute([$category_id]);
-    $cat = $stmt->fetch();
-    return $cat && $cat['parent_id'] !== null;
+    return (bool)$stmt->fetchColumn();
 }
 
-function render_flash(string $var): void {
-    if (isset($GLOBALS[$var]) && $GLOBALS[$var]) {
-        $cls = $var === 'error' ? 'fmsg-error' : 'fmsg-success';
-        echo '<div class="fmsg ' . $cls . '">' . h($GLOBALS[$var]) . '</div>';
+function render_flash(?string $msg, string $type = 'error'): void {
+    if ($msg !== null && $msg !== '') {
+        $cls = $type === 'error' ? 'fmsg-error' : 'fmsg-success';
+        echo '<div class="fmsg ' . $cls . '">' . h($msg) . '</div>';
     }
 }
 
 function find_object(PDO $pdo, string $q, string $select = '*'): ?array {
+    $allowed = array_merge(ENTRY_FIELD_COLUMNS, ['id', 'created_at', 'updated_at', 'status', '*']);
+    if (!in_array($select, $allowed, true)) {
+        $select = '*';
+    }
     $stmt = $pdo->prepare("SELECT $select FROM objects WHERE name = ? OR catalog_id = ? LIMIT 1");
     $stmt->execute([$q, $q]);
     $row = $stmt->fetch();
@@ -112,19 +115,23 @@ function render_pagination(int $current, int $total, string $tmpl): void {
 
 function insert_proposal_data(PDO $pdo, int $thread_id, ?int $reply_id, int $author_id, string $proposal_type): void {
     if ($proposal_type === 'add_entry') {
-        $cols = implode(', ', $GLOBALS['ENTRY_FIELD_COLUMNS']);
-        $phs = implode(', ', array_fill(0, count($GLOBALS['ENTRY_FIELD_COLUMNS']), '?'));
+        $name = trim($_POST['pe_name'] ?? '');
+        if ($name === '') {
+            throw new \RuntimeException('Entry name is required.');
+        }
+        $cols = implode(', ', ENTRY_FIELD_COLUMNS);
+        $phs = implode(', ', array_fill(0, count(ENTRY_FIELD_COLUMNS), '?'));
         $pst = $pdo->prepare("
             INSERT INTO proposed_entries (thread_id, reply_id, author_id, $cols)
             VALUES (?, ?, ?, $phs)
         ");
         $vals = [$thread_id, $reply_id, $author_id];
-        foreach ($GLOBALS['ENTRY_FIELD_COLUMNS'] as $f) {
+        foreach (ENTRY_FIELD_COLUMNS as $f) {
             $pk = 'pe_' . $f;
             if ($f === 'entry_type') {
                 $vals[] = $_POST[$pk] ?? 'star';
             } elseif ($f === 'name') {
-                $vals[] = $_POST[$pk] ?? '';
+                $vals[] = $name;
             } else {
                 $vals[] = !empty($_POST[$pk]) ? $_POST[$pk] : null;
             }
@@ -153,10 +160,10 @@ function insert_proposal_data(PDO $pdo, int $thread_id, ?int $reply_id, int $aut
     }
 }
 
-$ENTRY_FIELD_COLUMNS = ['name','catalog_id','entry_type','right_ascension','declination',
+const ENTRY_FIELD_COLUMNS = ['name','catalog_id','entry_type','right_ascension','declination',
     'apparent_mag','spectral_type','constellation','distance_ly','discovered_by','discovery_year','notes'];
 
-$ENTRY_FIELD_LABELS = [
+const ENTRY_FIELD_LABELS = [
     'name' => 'Name',
     'catalog_id' => 'Catalog ID',
     'entry_type' => 'Type',
@@ -171,6 +178,6 @@ $ENTRY_FIELD_LABELS = [
     'notes' => 'Notes',
 ];
 
-$ENTRY_TYPES = ['star','galaxy','nebula','emission_nebula','reflection_nebula','planetary_nebula',
+const ENTRY_TYPES = ['star','galaxy','nebula','emission_nebula','reflection_nebula','planetary_nebula',
     'open_cluster','globular_cluster','quasar','planet','dwarf_planet','moon','asteroid','comet',
     'cluster','supernova_remnant'];
