@@ -11,29 +11,25 @@ the catalogue itself.
 
 ### 1.1 Categories (sub-forums)
 
-Every thread lives in exactly one category. Categories form a
-two-level hierarchy: top-level categories (`general`, `identifications`,
-and object-type groups) each have a child `proposals` sub-category.
+Every thread lives in exactly one category. Categories are stored in a
+`categories` table with a self-referencing `parent_id` FK (reserved for
+future hierarchy). The current seed data uses a flat layout:
 
-| Category                  | Slug                 | Parent   | Entry types mapped            |
-|---------------------------|----------------------|----------|-------------------------------|
-| General                   | `general`            | NULL     | NULL                          |
-| Help Identifying          | `identifications`    | NULL     | NULL                          |
-| Stars                     | `stars`              | NULL     | star                          |
-| ├ Stars — Proposals       | `stars-proposals`    | `stars`  | star                          |
-| Nebulae & Clusters        | `nebulae-clusters`   | NULL     | nebula, cluster, etc.         |
-| ├ Nebulae — Proposals     | `nebulae-proposals`  | `nebulae-clusters` | nebula, cluster, etc.|
-| Galaxies                  | `galaxies`           | NULL     | galaxy, quasar                |
-| ├ Galaxies — Proposals    | `galaxies-proposals` | `galaxies` | galaxy, quasar               |
-| Solar System              | `solar-system`       | NULL     | planet, moon, asteroid, comet |
-| ├ Solar System — Proposals| `solar-proposals`    | `solar-system` | planet, moon, etc.       |
-| Deep Sky                  | `deep-sky`           | NULL     | anything not matched above    |
-| ├ Deep Sky — Proposals    | `deep-sky-proposals` | `deep-sky` | anything not matched above   |
+| Category                  | Slug                 | Entry types mapped            |
+|---------------------------|----------------------|-------------------------------|
+| General                   | `general`            | NULL                          |
+| Help Identifying          | `identifications`    | NULL                          |
+| Stars                     | `stars`              | star                          |
+| Nebulae & Clusters        | `nebulae-clusters`   | nebula, cluster, etc.         |
+| Galaxies                  | `galaxies`           | galaxy, quasar                |
+| Solar System              | `solar-system`       | planet, moon, asteroid, comet |
+| Deep Sky                  | `deep-sky`           | anything not matched above    |
+| Proposals                 | `proposals`          | all types (fallback)          |
 
-Categories are stored in a `categories` table with a self-referencing
-`parent_id` FK. The index page renders parent categories with their
-child sub-categories indented beneath them (standard forum index
-pattern), each showing its unread/recent thread count.
+Categories with `is_proposal = TRUE` are proposal categories. A thread
+in a proposal category is always a proposal thread — the `proposal_type`
+column on the thread disambiguates between `add_entry`, `edit_field`,
+and `remove_entry`.
 
 Because a category (like `nebulae-clusters`) can map to multiple object
 types (e.g., `nebula`, `planetary_nebula`, `open_cluster`), the 1:N
@@ -43,10 +39,8 @@ catalogue filter keyed to the current category), but the category page
 itself is a thread listing — it does not implement a per-category
 catalogue sidebar.
 
-A thread in a proposal sub-category is always a proposal thread — the
-category determines the proposal type context, though the `proposal_type`
-column on the thread disambiguates between `add_entry`, `edit_field`,
-and `remove_entry`.
+The index page lists all categories with their open thread count.
+Proposal categories are marked with a `[Proposals]` badge.
 
 ### 1.2 Threads
 
@@ -108,29 +102,19 @@ that reply and closes the thread.
 If the identification points to an existing catalogue entry, the
 thread is linked to it via `identified_entry_id`. The system checks
 the solution reply for `@entry:` mentions to auto-link the existing
-entry. If the reply mentions no known entry, the last reply in the
-identification thread is linked to the proposal thread via
-`parent_reply_id` (on the proposal thread) — set automatically when
-the proposal is created from the identification thread. The entry
-detail page lists all threads linked via `identified_entry_id`.
-
-When the proposal is approved and the entry exists, whoever reviews
-the proposal sets `identified_entry_id` on the identification thread
-to the newly created entry. This preserves the full chain: ident
-thread → last reply → proposal → approved entry.
+entry. The entry detail page lists all threads linked via
+`identified_entry_id`.
 
 The UI is a simple "Mark as solution" button on each reply, visible
 only to the thread author and admins. No dropdown, no object selector.
 If the solver wants to link to an existing entry, they write
 `@entry:Sirius` in their reply and the system picks it up when the
-solution is marked. If the reply mentions no known entry, the
-proposal creation form auto-sets `parent_reply_id` to the last reply
-in the identification thread.
+solution is marked.
 
 ### 1.5 Proposals (catalogue changes)
 
-A thread in a proposal sub-category (e.g. `stars-proposals`) suggests
-a change to the catalogue. Three types:
+A thread in a proposal category suggests a change to the catalogue.
+Three types:
 
 - **add_entry** — propose a new object with all its fields
 - **edit_field** — propose changing a specific field on an existing
@@ -326,8 +310,7 @@ uses `DECIMAL(12,3)`, supporting values up to 999 billion light-years.
 ### 3.2 Category entry-type mapping
 
 Each category maps to one or more entry types via the `category_entry_types`
-junction table. Child (proposal) categories copy their parent's mapped
-entry types at creation time. 
+junction table.
 
 | Category              | entry_type value(s)                                      |
 |-----------------------|----------------------------------------------------------|
@@ -336,10 +319,11 @@ entry types at creation time.
 |                       | planetary_nebula, open_cluster, globular_cluster          |
 | `galaxies`            | galaxy, quasar                                           |
 | `solar-system`        | planet, dwarf_planet, moon, asteroid, comet              |
-| `deep-sky`            | anything not matched above                               |
+| `deep-sky`            | nebula, galaxy, cluster, supernova_remnant               |
+| `proposals`           | all types (fallback via `ENTRY_TYPES` constant)          |
 
-Proposal sub-categories use the same entry types as their parent,
-so the sidebar filters identically. 
+Proposal categories use `ENTRY_TYPES` as a fallback when no specific
+mappings exist.
 
 Entries with `status = 'deleted'` are excluded from listings but
 their data is preserved for audit.
@@ -436,7 +420,8 @@ CREATE TABLE category_entry_types (
   entry_type   VARCHAR(64) NOT NULL,
   PRIMARY KEY (category_id, entry_type),
 
-  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+  INDEX idx_cet_entry_type (entry_type)
 );
 ```
 
@@ -495,7 +480,7 @@ CREATE TABLE threads (
   -- Identification column (NULL for non-identification threads)
   identified_entry_id   INT UNSIGNED NULL,
 
-  -- Link: a proposal spawned from a solution reply on an identification thread
+  -- Reserved: link a proposal to the identification reply that spawned it
   parent_reply_id       INT UNSIGNED NULL,
 
   -- Closing
@@ -676,6 +661,7 @@ htdocs/
 │   ├── db.php                — PDO connection (127.0.0.1:3306)
 │   ├── auth.php              — Session, login, permissions, expertise calc
 │   ├── functions.php         — h(), render_body(), time_ago(), flash_message()
+│   ├── proposal-fields.php   — Form fields for add_entry/edit_field/remove_entry
 │   ├── header.php            — HTML shell + nav
 │   └── footer.php            — Close tags
 ├── admin/
@@ -694,8 +680,9 @@ htdocs/
 1. **Category hierarchy encodes object type.** The `category.php` page
    lists threads for the current category. The `category_entry_types`
    junction table exists for data normalization (no comma-separated
-   types) and future catalogue-filtering features. Proposal sub-categories
-   sit under their parent in the nav tree.
+   types) and future catalogue-filtering features. Proposal categories
+   are marked with an `is_proposal` flag and a `[Proposals]` badge
+   in the index.
 
 2. **Posts can carry structured proposal data.** When composing a
    reply inside the `proposals` category, or creating the thread itself,
@@ -706,10 +693,9 @@ htdocs/
    can carry different proposals within the same thread.
 
 3. **Solution marking on identifications is thread-level.** The OP
-   clicks "Mark as solution" on a reply, which sets `is_solution = 1`
-   and checks the reply for `@entry:` mentions to auto-link the
-   thread. If no known entry is mentioned, the solver manually creates
-   a proposal thread in the relevant proposals sub-category.
+   clicks "Mark as solution" on a reply, which sets `is_solution = 1`,
+   closes the thread, and checks the reply for `@entry:` mentions to
+   auto-link the thread to an existing catalogue entry.
 
 4. **Approve/Reject on proposals is thread-level, but data is
    per-post.** Experts see Approve/Reject buttons at the top of the
@@ -727,7 +713,7 @@ The render function processes post body in this order:
 3. `nl2br()` for line breaks
 
 ```php
-function render_body(PDO $pdo, string $text): string
+function render_body(string $text): string
 {
     $text = h($text);
     
