@@ -1,0 +1,434 @@
+<mxfile host="app.diagrams.net" agent="Claude">
+  <diagram name="AstroForum EER" id="astroforum-eer">
+    <mxGraphModel dx="3707" dy="3708" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="2400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ent_user" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;align=center;verticalAlign=middle;" value="User" vertex="1">
+          <mxGeometry height="50" width="160" x="-335" y="-480" as="geometry" />
+        </mxCell>
+        <mxCell id="isa_user" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=12;" value="d" vertex="1">
+          <mxGeometry height="40" width="40" x="-40" y="-320" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_admin" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=14;" value="Admin" vertex="1">
+          <mxGeometry height="50" width="150" x="-440" y="-180" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_privileged" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=13;dashed=1;" value="PrivilegedUser&#xa;(shared access level)" vertex="1">
+          <mxGeometry height="55" width="180" x="40" y="-250" as="geometry" />
+        </mxCell>
+        <mxCell id="isa_priv" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=12;" value="o" vertex="1">
+          <mxGeometry height="40" width="40" x="-30" y="-30" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_expert" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=14;align=center;" value="Expert&#xa;+ revert_count: int" vertex="1">
+          <mxGeometry height="55" width="170" x="90" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_verified" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=14;align=center;" value="VerifiedUser&#xa;+ verification_reason: text&#xa;+ restricted: bool" vertex="1">
+          <mxGeometry height="65" width="200" x="-480" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_verifies" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="verifies" vertex="1">
+          <mxGeometry height="60" width="120" x="-350" y="-50" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_restricts" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="restricts" vertex="1">
+          <mxGeometry height="60" width="120" x="-520" y="-50" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_approves_reg" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="approves&#xa;registration" vertex="1">
+          <mxGeometry height="70" width="140" x="-510" y="-300" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_subforum" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;" value="Subforum" vertex="1">
+          <mxGeometry height="50" width="160" x="-685" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_objtype" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;" value="ObjectType" vertex="1">
+          <mxGeometry height="50" width="160" x="-850" y="576.72" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_subforum_type" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="dedicated to" vertex="1">
+          <mxGeometry height="40" width="120" x="-740" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_thread" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;" value="Thread" vertex="1">
+          <mxGeometry height="50" width="160" x="-520" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="isa_thread" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=12;" value="d" vertex="1">
+          <mxGeometry height="40" width="40" x="-430" y="536.72" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_general_thread" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=13;" value="GeneralThread" vertex="1">
+          <mxGeometry height="50" width="170" x="-630" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_id_thread" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=13;" value="IdentificationThread&#xa;+ is_identified: bool" vertex="1">
+          <mxGeometry height="55" width="200" x="-440" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_message" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;strokeWidth=3;" value="Message" vertex="1">
+          <mxGeometry height="50" width="160" x="-100" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_message_inner" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="40" width="150" x="-95" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="isa_message" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=12;" value="o" vertex="1">
+          <mxGeometry height="40" width="40" x="-40" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_proposal" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=13;align=center;" value="Proposal&#xa;+ proposal_type: {add,change}&#xa;+ status: {pending,approved,rejected}&#xa;+ approved_at: datetime" vertex="1">
+          <mxGeometry height="90" width="230" x="-210" y="602.5" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_dispute" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=13;align=center;" value="Dispute&#xa;+ status: {pending,approved}" vertex="1">
+          <mxGeometry height="55" width="190" x="340" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_approves_prop" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="approves" vertex="1">
+          <mxGeometry height="60" width="120" x="260" y="-40" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_approves_disp" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" value="approves&#xa;(≠ original approver)" vertex="1">
+          <mxGeometry height="60" width="150" x="340" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_disputes" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="disputes" vertex="1">
+          <mxGeometry height="50" width="110" x="150" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_object" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;" value="AstronomicalObject" vertex="1">
+          <mxGeometry height="50" width="190" x="440" y="825" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_proposes" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="proposes" vertex="1">
+          <mxGeometry height="55" width="120" x="100" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_of_type" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="of type" vertex="1">
+          <mxGeometry height="50" width="110" x="-130" y="1090" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_creation_thread" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="created via" vertex="1">
+          <mxGeometry height="55" width="130" x="200" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="ent_creation_thread" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=13;" value="CreationThread" vertex="1">
+          <mxGeometry height="50" width="170" x="-200" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_links_creation" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="links to" vertex="1">
+          <mxGeometry height="50" width="110" x="-110" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_id_links_creation" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" value="identification&#xa;links to" vertex="1">
+          <mxGeometry height="55" width="110" x="-360" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_replies_to" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" value="replies to&#xa;(reason)" vertex="1">
+          <mxGeometry height="55" width="110" x="140" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_posts" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="posts" vertex="1">
+          <mxGeometry height="50" width="100" x="-60" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_belongs_to" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;strokeWidth=2;" value="belongs to" vertex="1">
+          <mxGeometry height="50" width="120" x="-260" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_belongs_to_inner" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#b85450;" value="" vertex="1">
+          <mxGeometry height="40" width="110" x="-255" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_authors" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="authors" vertex="1">
+          <mxGeometry height="50" width="100" x="-235" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_posted_in" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="posted in" vertex="1">
+          <mxGeometry height="50" width="110" x="-660" y="452.5" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_confirms" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" value="confirms&#xa;identification" vertex="1">
+          <mxGeometry height="55" width="120" x="-580" y="255" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_identifies" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="identifies" vertex="1">
+          <mxGeometry height="50" width="110" x="-280" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_user_id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="&lt;u&gt;user_id&lt;/u&gt;" vertex="1">
+          <mxGeometry height="45" width="120" x="-475" y="-520" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_username" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="username" vertex="1">
+          <mxGeometry height="40" width="110" x="-335" y="-560" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_email" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="email" vertex="1">
+          <mxGeometry height="40" width="100" x="-205" y="-520" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_reg_status" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="registration_status" vertex="1">
+          <mxGeometry height="45" width="140" x="-85" y="-490" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_subforum_name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="name" vertex="1">
+          <mxGeometry height="40" width="90" x="-860" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_objtype_name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="type_name" vertex="1">
+          <mxGeometry height="40" width="100" x="-880" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_thread_id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="&lt;u&gt;thread_id&lt;/u&gt;" vertex="1">
+          <mxGeometry height="45" width="130" x="-560" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_thread_title" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="title" vertex="1">
+          <mxGeometry height="40" width="90" x="-335" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_thread_created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="created_at" vertex="1">
+          <mxGeometry height="40" width="100" x="-570" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_msg_id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="message_id&#xa;(partial key)" vertex="1">
+          <mxGeometry height="50" width="120" x="-150" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_msg_body" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="body" vertex="1">
+          <mxGeometry height="40" width="90" x="80" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_msg_created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="created_at" vertex="1">
+          <mxGeometry height="40" width="100" x="195" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_msg_is_first" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="is_first_message" vertex="1">
+          <mxGeometry height="45" width="130" x="60" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_obj_id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="&lt;u&gt;object_id&lt;/u&gt;" vertex="1">
+          <mxGeometry height="45" width="130" x="730" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_obj_name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="name" vertex="1">
+          <mxGeometry height="40" width="90" x="780" y="696.72" as="geometry" />
+        </mxCell>
+        <mxCell id="attr_obj_coords" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;" value="coordinates&#xa;(catalogue data)" vertex="1">
+          <mxGeometry height="50" width="140" x="760" y="756.72" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_isa" edge="1" parent="1" source="ent_user" style="edgeStyle=none;html=1;endArrow=none;" target="isa_user">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_isa_admin" edge="1" parent="1" source="isa_user" style="edgeStyle=none;html=1;endArrow=none;" target="ent_admin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_isa_priv_top" edge="1" parent="1" source="isa_user" style="edgeStyle=none;html=1;endArrow=none;" target="ent_privileged">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_priv_isa" edge="1" parent="1" source="ent_privileged" style="edgeStyle=none;html=1;endArrow=none;" target="isa_priv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_isa_expert" edge="1" parent="1" source="isa_priv" style="edgeStyle=none;html=1;endArrow=none;" target="ent_expert">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_isa_verified" edge="1" parent="1" source="isa_priv" style="edgeStyle=none;html=1;endArrow=none;" target="ent_verified">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_thread_isa_top" edge="1" parent="1" source="ent_thread" style="edgeStyle=none;html=1;endArrow=none;" target="isa_thread">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_isa_general" edge="1" parent="1" source="isa_thread" style="edgeStyle=none;html=1;endArrow=none;" target="ent_general_thread">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_isa_idthread" edge="1" parent="1" source="isa_thread" style="edgeStyle=none;html=1;endArrow=none;" target="ent_id_thread">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_msg_isa_top" edge="1" parent="1" source="ent_message" style="edgeStyle=none;html=1;endArrow=none;" target="isa_message">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_isa_proposal" edge="1" parent="1" source="isa_message" style="edgeStyle=none;html=1;endArrow=none;" target="ent_proposal">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_isa_dispute" edge="1" parent="1" source="isa_message" style="edgeStyle=none;html=1;endArrow=none;" target="ent_dispute">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_creation_isa_thread" edge="1" parent="1" source="ent_creation_thread" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=0;dashed=1;fontSize=10;" target="ent_thread" value="is-a">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-449.93" y="995" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_admin_relapprovereg" edge="1" parent="1" source="ent_admin" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_approves_reg" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relapprovereg_user" edge="1" parent="1" source="rel_approves_reg" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_user" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_admin_relverifies" edge="1" parent="1" source="ent_admin" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_verifies" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relverifies_verified" edge="1" parent="1" source="rel_verifies" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_verified" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_admin_relrestricts" edge="1" parent="1" source="ent_admin" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_restricts" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relrestricts_verified" edge="1" parent="1" source="rel_restricts" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_verified" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_subforum_reltype" edge="1" parent="1" source="ent_subforum" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_subforum_type" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_reltype_objtype" edge="1" parent="1" source="rel_subforum_type" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_objtype" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_thread_relpostedin" edge="1" parent="1" source="ent_thread" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_posted_in" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relpostedin_subforum" edge="1" parent="1" source="rel_posted_in" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_subforum" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_relauthors" edge="1" parent="1" source="ent_user" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_authors" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relauthors_thread" edge="1" parent="1" source="rel_authors" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_thread" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_relposts" edge="1" parent="1" source="ent_user" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_posts" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relposts_msg" edge="1" parent="1" source="rel_posts" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_message" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_msg_relbelongs" edge="1" parent="1" source="ent_message" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;strokeWidth=2;" target="rel_belongs_to" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relbelongs_thread" edge="1" parent="1" source="rel_belongs_to" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;strokeWidth=2;" target="ent_thread" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_msg_relreplies_child" edge="1" parent="1" source="ent_message" style="edgeStyle=none;html=1;endArrow=none;fontSize=10;" target="rel_replies_to" value="N (reply)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="100" y="487.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_relreplies_msg_parent" edge="1" parent="1" source="rel_replies_to" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=10;" target="ent_proposal" value="1 (parent)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="270.06999999999994" y="655" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_priv_relapprovesprop" edge="1" parent="1" source="ent_privileged" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_approves_prop" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relapprovesprop_proposal" edge="1" parent="1" source="rel_approves_prop" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=11;" target="ent_proposal" value="N">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="320.06999999999994" y="530.07" />
+              <mxPoint x="-89.92999999999995" y="530.07" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_priv_relapprovesdisp" edge="1" parent="1" source="ent_privileged" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=11;" target="rel_approves_disp" value="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="415" y="-105" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_relapprovesdisp_dispute" edge="1" parent="1" source="rel_approves_disp" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=11;" target="ent_dispute" value="N">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="415" y="599.27" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_dispute_reldisputes" edge="1" parent="1" source="ent_dispute" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_disputes" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_reldisputes_proposal" edge="1" parent="1" source="rel_disputes" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_proposal" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_proposal_relproposes" edge="1" parent="1" source="ent_proposal" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_proposes" value="N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relproposes_object" edge="1" parent="1" source="rel_proposes" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_object" value="0..1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_object_relof" edge="1" parent="1" source="ent_object" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=11;" target="rel_of_type" value="N">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="645" y="1115" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_relof_objtype" edge="1" parent="1" source="rel_of_type" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=11;" target="ent_objtype" value="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-769.93" y="1120.07" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_object_relcreationthread" edge="1" parent="1" source="ent_object" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=11;" target="rel_creation_thread" value="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="435" y="925" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_relcreationthread_thread" edge="1" parent="1" source="rel_creation_thread" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_creation_thread" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_proposal_rellinks" edge="1" parent="1" source="ent_proposal" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_links_creation" value="0..1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rellinks_creationthread" edge="1" parent="1" source="rel_links_creation" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_creation_thread" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_idthread_rellinks" edge="1" parent="1" source="ent_id_thread" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_id_links_creation" value="0..1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rel_id_links_creationthread" edge="1" parent="1" source="rel_id_links_creation" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="ent_creation_thread" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_idthread_relidentifies" edge="1" parent="1" source="ent_id_thread" style="edgeStyle=none;html=1;endArrow=none;fontSize=11;" target="rel_identifies" value="0..1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_relidentifies_object" edge="1" parent="1" source="rel_identifies" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=11;" target="ent_object" value="0..N">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="535" y="755" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_general_relconfirms" edge="1" parent="1" source="ent_id_thread" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;fontSize=11;" target="rel_confirms" value="0..1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-339.93" y="700.0699999999999" />
+              <mxPoint x="-579.9300000000001" y="700.0699999999999" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_relconfirms_authorlink" edge="1" parent="1" source="rel_confirms" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=0;dashed=1;fontSize=9;" target="rel_authors" value="confirmed by&#xa;thread author">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-519.9300000000001" y="205" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ae1" edge="1" parent="1" source="ent_user" style="edgeStyle=none;html=1;endArrow=none;" target="attr_user_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae2" edge="1" parent="1" source="ent_user" style="edgeStyle=none;html=1;endArrow=none;" target="attr_username">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae3" edge="1" parent="1" source="ent_user" style="edgeStyle=none;html=1;endArrow=none;" target="attr_email">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae4" edge="1" parent="1" source="ent_user" style="edgeStyle=none;html=1;endArrow=none;" target="attr_reg_status">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae5" edge="1" parent="1" source="ent_subforum" style="edgeStyle=none;html=1;endArrow=none;" target="attr_subforum_name">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae6" edge="1" parent="1" source="ent_objtype" style="edgeStyle=none;html=1;endArrow=none;" target="attr_objtype_name">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae7" edge="1" parent="1" source="ent_thread" style="edgeStyle=none;html=1;endArrow=none;" target="attr_thread_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae8" edge="1" parent="1" source="ent_thread" style="edgeStyle=none;html=1;endArrow=none;" target="attr_thread_title">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae9" edge="1" parent="1" source="ent_thread" style="edgeStyle=none;html=1;endArrow=none;" target="attr_thread_created">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae10" edge="1" parent="1" source="ent_message" style="edgeStyle=none;html=1;endArrow=none;strokeWidth=2;" target="attr_msg_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae11" edge="1" parent="1" source="ent_message" style="edgeStyle=none;html=1;endArrow=none;" target="attr_msg_body">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae12" edge="1" parent="1" source="ent_message" style="edgeStyle=none;html=1;endArrow=none;" target="attr_msg_created">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae13" edge="1" parent="1" source="ent_message" style="edgeStyle=none;html=1;endArrow=none;" target="attr_msg_is_first">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae14" edge="1" parent="1" source="ent_object" style="edgeStyle=none;html=1;endArrow=none;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="778.6772923337021" y="665.004033723332" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ae15" edge="1" parent="1" source="ent_object" style="edgeStyle=none;html=1;endArrow=none;" target="attr_obj_name">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae16" edge="1" parent="1" source="ent_object" style="edgeStyle=none;html=1;endArrow=none;" target="attr_obj_coords">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="shape=box;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacing=8;fontSize=12;" value="Legend&#xa;— Rectangle = Entity (bold border = weak entity)&#xa;— Diamond = Relationship&#xa;— Ellipse = Attribute&#xa;— Circle &quot;d&quot; = disjoint specialization, &quot;o&quot; = overlapping&#xa;— Dashed box = shared/union subclass (PrivilegedUser)&#xa;— PK = primary key" vertex="1">
+          <mxGeometry height="150" width="360" x="500" y="-310" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
