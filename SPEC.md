@@ -1,4 +1,4 @@
-A simple LAMP stack StackOverflow-like forum for a crowdsourced astronomical catalogue.
+A simple StackOverflow-like forum based on simple forum software suitable for a crowdsourced astronomical catalogue.
 Forum database links to catalogue database.
 
 1. Admins have to approve new registrations.
