@@ -18,4 +18,4 @@ When a proposal is approved it modifies the catalogue database and the reply mes
 When an unknown object is identified the reply message links to the creation approval reply of that object in the proposal thread of that object.
 10. User profile page with history.
 11. Astronomical catalogue with user submitted pictures from proposals.
-12. Separte database for astronomical catalogue
+12. Separte database for astronomical catalogue.
