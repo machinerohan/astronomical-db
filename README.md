@@ -16,6 +16,21 @@ mysql -u root < db\seed.sql
 
 The `astronomical_db` database is now ready with the `objects` table and sample data.
 
+### macOS — XAMPP
+
+1. Install [XAMPP](https://www.apachefriends.org/), then open **XAMPP Manager**
+	and start **MySQL**. Start **Apache** too if you want to use the PHP frontend.
+2. From the project directory, load the schema and sample data using XAMPP's
+	bundled MySQL client:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysql -u root < db/schema.sql
+/Applications/XAMPP/xamppfiles/bin/mysql -u root < db/seed.sql
+```
+
+The `astronomical_db` database is now ready with the `objects` table and sample
+data. If you configured a root password, add `-p` to both commands.
+
 ### Linux — Nix
 
 ```bash
