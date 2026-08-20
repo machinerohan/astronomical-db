@@ -1,34 +1,3 @@
--- AstroForum — forum schema, derived from SPEC.md (simple branch).
--- MySQL / MariaDB compatible. Run AFTER db/schema.sql (which creates `objects`).
---
--- How each SPEC requirement is satisfied:
---   R1  Admins approve new registrations ........ users.registration_status, users.approved_by
---   R2  Threads are discussion or identification  threads.type
---   R3  Only the opening post asks for identification; the thread author
---       confirms the object ....................... posts.is_opening, posts.is_solution,
---                                               threads.identified_object_id
---   R4  Threads can carry proposals to add or
---       change objects ............................ proposals, proposed_objects
---   R5  Experts approve proposals; a good approval
---       history promotes a user to expert ......... proposals.approver_id, object_edits,
---                                               users.expertise (computed)
---   R6  A proposal can be disputed; the dispute is
---       approved by someone OTHER than the original
---       approver, reverting to the last good value  disputes, object_edits (revert), trigger
---   R7  Enough reverts demote an expert ............ users.expertise (computed from object_edits)
---   R8  Admins verify users (expert-level access),
---       restrict verified users, and record why .... verifications, users.is_restricted
---   R9  Subforums per object type; approval,
---       rejection, and identification replies link
---       back to the relevant approval reply ........ categories.object_type,
---                                               posts.linked_post_id, posts.linked_object_id
---   R10 Profile page with history .................. all tables keyed by author/user id
---
--- Self-approval is removed everywhere:
---   * a proposal author may not approve their own proposal   (CHECK)
---   * a dispute author may not resolve their own dispute     (CHECK)
---   * the original approver may not resolve a dispute        (trigger)
-
 USE astronomical_db;
 
 -- 1. Users
@@ -39,8 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   role                ENUM('admin','member') NOT NULL DEFAULT 'member',
   expertise           ENUM('normal','expert','verified') NOT NULL DEFAULT 'normal',
   registration_status ENUM('pending','active','rejected') NOT NULL DEFAULT 'pending',
-  approved_by         INT UNSIGNED NULL,           -- admin who approved registration (R1)
-  is_restricted       BOOLEAN NOT NULL DEFAULT FALSE, -- admin restriction on a verified user (R8)
+  approved_by         INT UNSIGNED NULL, 
+  is_restricted       BOOLEAN NOT NULL DEFAULT FALSE,
   created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_username (username),
@@ -49,12 +18,12 @@ CREATE TABLE IF NOT EXISTS users (
     ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 2. Verification notes (R8: admins can see why a user was verified)
+
 CREATE TABLE IF NOT EXISTS verifications (
   id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id        INT UNSIGNED NOT NULL,
-  verified_by_id INT UNSIGNED NOT NULL,            -- admin who granted the badge
-  note           TEXT NULL,                        -- private reason, admin-only
+  verified_by_id INT UNSIGNED NOT NULL,
+  note           TEXT NULL,
   created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_verifications_user (user_id),
@@ -63,12 +32,11 @@ CREATE TABLE IF NOT EXISTS verifications (
   CONSTRAINT fk_verifications_verifier FOREIGN KEY (verified_by_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 3. Subforums, one per object type (R9)
 CREATE TABLE IF NOT EXISTS categories (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name        VARCHAR(64)  NOT NULL,
   slug        VARCHAR(64)  NOT NULL,
-  object_type VARCHAR(64)  NULL,                   -- NULL for general/discussion subforums
+  object_type VARCHAR(64)  NULL,             
   description VARCHAR(255) NULL,
   created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -76,7 +44,6 @@ CREATE TABLE IF NOT EXISTS categories (
   KEY idx_categories_object_type (object_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. Threads
 CREATE TABLE IF NOT EXISTS threads (
   id                   INT UNSIGNED NOT NULL AUTO_INCREMENT,
   category_id          INT UNSIGNED NOT NULL,
@@ -96,16 +63,15 @@ CREATE TABLE IF NOT EXISTS threads (
     REFERENCES objects(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 5. Posts (replies). The opening post is the only one that asks for identification.
 CREATE TABLE IF NOT EXISTS posts (
   id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
   thread_id        INT UNSIGNED NOT NULL,
   author_id        INT UNSIGNED NOT NULL,
   body             TEXT NOT NULL,
-  is_opening       BOOLEAN NOT NULL DEFAULT FALSE, -- first message in the thread (R3)
-  is_solution      BOOLEAN NOT NULL DEFAULT FALSE, -- confirming reply (R3)
-  linked_post_id   INT UNSIGNED NULL,              -- reply links to an approval reply (R9)
-  linked_object_id INT UNSIGNED NULL,              -- reply links to a catalogue object (R9)
+  is_opening       BOOLEAN NOT NULL DEFAULT FALSE,
+  is_solution      BOOLEAN NOT NULL DEFAULT FALSE,
+  linked_post_id   INT UNSIGNED NULL,       
+  linked_object_id INT UNSIGNED NULL,         
   created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_posts_thread (thread_id),
@@ -119,19 +85,18 @@ CREATE TABLE IF NOT EXISTS posts (
     ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 6. Proposals: add or change a catalogue object (R4, R5, R9)
 CREATE TABLE IF NOT EXISTS proposals (
   id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
   thread_id        INT UNSIGNED NOT NULL,
-  post_id          INT UNSIGNED NULL,              -- post carrying the proposal (NULL if opening post)
+  post_id          INT UNSIGNED NULL,           
   author_id        INT UNSIGNED NOT NULL,
   type             ENUM('add_entry','edit_field') NOT NULL,
-  target_object_id INT UNSIGNED NULL,              -- object being changed (edit_field)
-  field            VARCHAR(64)  NULL,              -- field being changed (edit_field)
-  new_value        VARCHAR(255) NULL,              -- proposed value (edit_field)
+  target_object_id INT UNSIGNED NULL,          
+  field            VARCHAR(64)  NULL,         
+  new_value        VARCHAR(255) NULL,      
   status           ENUM('pending','approved','rejected','reverted') NOT NULL DEFAULT 'pending',
-  approver_id      INT UNSIGNED NULL,              -- expert/admin who approved (R5)
-  reason           VARCHAR(255) NULL,              -- rejection or revert reason (R9)
+  approver_id      INT UNSIGNED NULL,             
+  reason           VARCHAR(255) NULL,         
   created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   resolved_at      TIMESTAMP NULL,
   PRIMARY KEY (id),
@@ -151,7 +116,6 @@ CREATE TABLE IF NOT EXISTS proposals (
     CHECK (approver_id IS NULL OR approver_id <> author_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 7. Proposed object payload for add_entry proposals (R4)
 CREATE TABLE IF NOT EXISTS proposed_objects (
   id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
   proposal_id     INT UNSIGNED NOT NULL,
@@ -170,7 +134,6 @@ CREATE TABLE IF NOT EXISTS proposed_objects (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 8. Applied catalogue edits: audit log and revert source (R6, R7, R10)
 CREATE TABLE IF NOT EXISTS object_edits (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   object_id   INT UNSIGNED NOT NULL,
@@ -178,7 +141,7 @@ CREATE TABLE IF NOT EXISTS object_edits (
   field       VARCHAR(64)  NULL,
   old_value   VARCHAR(255) NULL,
   new_value   VARCHAR(255) NULL,
-  applied_by  INT UNSIGNED NOT NULL,               -- the approver who applied the change
+  applied_by  INT UNSIGNED NOT NULL,             
   created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_object_edits_object (object_id),
@@ -190,14 +153,13 @@ CREATE TABLE IF NOT EXISTS object_edits (
   CONSTRAINT fk_object_edits_applier  FOREIGN KEY (applied_by)  REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 9. Disputes against a previously approved proposal (R6, R7)
 CREATE TABLE IF NOT EXISTS disputes (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   proposal_id INT UNSIGNED NOT NULL,
-  author_id   INT UNSIGNED NOT NULL,               -- user filing the dispute
+  author_id   INT UNSIGNED NOT NULL,         
   reason      TEXT NOT NULL,
   status      ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
-  resolver_id INT UNSIGNED NULL,                   -- must differ from author AND original approver
+  resolver_id INT UNSIGNED NULL,                 
   created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   resolved_at TIMESTAMP NULL,
   PRIMARY KEY (id),
@@ -212,9 +174,6 @@ CREATE TABLE IF NOT EXISTS disputes (
     CHECK (resolver_id IS NULL OR resolver_id <> author_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Cross-table self-approval guard (R6): a dispute may not be resolved by the
--- user who approved the proposal being disputed. CHECK cannot span tables in
--- MySQL/MariaDB, so this is enforced with triggers.
 DELIMITER $$
 
 CREATE TRIGGER trg_disputes_no_original_approver_insert
@@ -242,19 +201,3 @@ BEGIN
 END$$
 
 DELIMITER ;
-
--- Logic notes (implemented in the application layer):
---
--- Expert promotion (R5): a user becomes an expert when their count of accepted
--- proposals minus the count of their later-reverted contributions reaches a
--- threshold. The negative score is a fast indexed count over object_edits;
--- the positive score counts approved proposals and disputes where their work
--- survived. Both are kept as application queries, not stored columns.
---
--- Revert on dispute approval (R6): approval of a dispute writes a reverse row
--- to object_edits (old_value = reverted value, new_value = last good value) and
--- sets the target proposal's status to 'reverted', so the object_edits log is
--- the single source of truth for both history and demotion scoring.
---
--- Expert demotion (R7): when the net score drops below the threshold, the
--- application demotes the user by updating users.expertise.
