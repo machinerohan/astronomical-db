@@ -326,7 +326,7 @@ function page_title(string $page, ?string $extra = null): string
                 <?php endforeach; ?>
             </div>
             </section>
-        <?php } ?>
+        <?php } endif; ?>
 
         <!-- THREAD VIEW -->
         <?php elseif ($page === 'thread' && $thread_id): 
