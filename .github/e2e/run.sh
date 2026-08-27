@@ -39,6 +39,9 @@ ck "setup.php creates first administrator" $([ "$CODE" = 200 ] && grep -q 'Admin
 T=$(tok $AJ "$SETUP_URL")
 act_setup "csrf_token=$T&username=sneakyadmin&password=adminpass123" $WORK/setup2.html >/dev/null
 ck "setup.php refuses a second administrator" $(grep -q 'already exists' $WORK/setup2.html && echo 0 || echo 1)
+TA=$(tok $AJ "$BASE?page=login")
+act $AJ "action=login&csrf_token=$TA&username=rootadmin&password=adminpass123" $WORK/lia-admin.html >/dev/null
+ck "created administrator can log in" $(grep -qi 'welcome back, rootadmin' $WORK/lia-admin.html && echo 0 || echo 1)
 
 for u in bob carol alice; do
   TJ=$WORK/$u.jar
