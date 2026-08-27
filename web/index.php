@@ -263,7 +263,7 @@ function page_title(string $page, ?string $extra = null): string
             </section>
 
         <!-- FORUM LISTING -->
-        <?php elseif ($page === 'forum'): 
+        <?php elseif ($page === 'forum') {
             if ($category_slug) {
                 $category = get_category_by_slug($category_slug);
                 if (!$category) {
@@ -326,10 +326,10 @@ function page_title(string $page, ?string $extra = null): string
                 <?php endforeach; ?>
             </div>
             </section>
-        <?php } endif; ?>
+        <?php } } ?>
 
         <!-- THREAD VIEW -->
-        <?php elseif ($page === 'thread' && $thread_id): 
+        <?php elseif ($page === 'thread' && $thread_id) { 
             $thread = get_thread_by_id($thread_id);
             if (!$thread) {
                 $page = 'home';
@@ -370,7 +370,7 @@ function page_title(string $page, ?string $extra = null): string
                 </section>
             <?php endif; ?>
 
-        <?php } endif; ?>
+        <?php } } ?>
 
         <!-- APPROVALS DASHBOARD -->
         <?php elseif ($page === 'approvals'): 
