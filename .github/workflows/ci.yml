@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [simple, forum-core]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  spec-e2e:
+    name: Lint + full-spec end-to-end
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ALLOW_EMPTY_PASSWORD: "yes"
+          MARIADB_DATABASE: astronomical_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_mysql, fileinfo
+
+      - name: Load database schemas and seeds
+        run: |
+          mysql -h127.0.0.1 -P3306 -uroot < db/schema.sql
+          mysql -h127.0.0.1 -P3306 -uroot < db/schema-forum.sql
+          mysql -h127.0.0.1 -P3306 -uroot < db/seed.sql
+
+      - name: PHP lint
+        run: for f in web/*.php; do php -l "$f"; done
+
+      - name: End-to-end spec suite (SPEC.md rules 1-12)
+        run: bash .github/e2e/run.sh

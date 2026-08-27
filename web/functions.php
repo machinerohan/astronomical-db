@@ -57,7 +57,12 @@ function csrf_token(): string
 
 function verify_csrf(): void
 {
-    if (!hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'] ?? '')) {
+    $sent = (string) ($_POST['csrf_token'] ?? '');
+    $known = (string) ($_SESSION['csrf_token'] ?? '');
+
+    // An absent token must not validate against an absent session secret,
+    // otherwise token-free forged requests would be accepted outright.
+    if ($known === '' || $sent === '' || !hash_equals($known, $sent)) {
         http_response_code(419);
         exit('Invalid form token. Please go back and try again.');
     }
