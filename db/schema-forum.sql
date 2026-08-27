@@ -201,7 +201,8 @@ CREATE TABLE IF NOT EXISTS disputes (
 
 DELIMITER $$
 
--- R5: nobody approves their own proposal.
+-- R5: nobody approves their own proposal. Re-runnable: drop-if-exists guards.
+DROP TRIGGER IF EXISTS trg_proposals_no_self_approve$$
 CREATE TRIGGER trg_proposals_no_self_approve
 BEFORE UPDATE ON proposals
 FOR EACH ROW
@@ -213,7 +214,8 @@ BEGIN
 END$$
 
 -- R6: dispute resolution may not be done by the proposal approver, nor by the
--- dispute's own filer.
+-- dispute's own filer. Re-runnable: drop-if-exists guards.
+DROP TRIGGER IF EXISTS trg_disputes_no_original_approver_insert$$
 CREATE TRIGGER trg_disputes_no_original_approver_insert
 BEFORE INSERT ON disputes
 FOR EACH ROW
@@ -228,6 +230,7 @@ BEGIN
   END IF;
 END$$
 
+DROP TRIGGER IF EXISTS trg_disputes_no_original_approver_update$$
 CREATE TRIGGER trg_disputes_no_original_approver_update
 BEFORE UPDATE ON disputes
 FOR EACH ROW

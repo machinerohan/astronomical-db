@@ -2,15 +2,34 @@
 
 declare(strict_types=1);
 
-// Forum database (users, threads, posts, proposals, disputes)
-const DB_HOST = '127.0.0.1';
-const DB_PORT = '3306';
-const DB_NAME = 'astronomical_db';
-const DB_USER = 'root';
-const DB_PASS = '';
+// Forum database (users, threads, posts, proposals, disputes).
+// Every value can be overridden through environment variables, e.g. for a
+// dedicated app user: ASTRO_DB_USER=astro ASTRO_DB_PASS=secret php -S ...
 
-// Catalogue database (spec R12) — same server, separate schema.
-const CATALOGUE_DB_NAME = 'catalogue_db';
+function astro_db_config(): array
+{
+    return [
+        'host'      => getenv('ASTRO_DB_HOST') ?: '127.0.0.1',
+        'port'      => getenv('ASTRO_DB_PORT') ?: '3306',
+        'name'      => getenv('ASTRO_DB_NAME') ?: 'astronomical_db',
+        'catalogue' => getenv('ASTRO_CATALOGUE_DB') ?: 'catalogue_db',
+        'user'      => getenv('ASTRO_DB_USER') ?: 'root',
+        // Empty password by default (XAMPP convention); ASTRO_DB_PASS='' keeps it empty.
+        'pass'      => getenv('ASTRO_DB_PASS') === false ? '' : getenv('ASTRO_DB_PASS'),
+    ];
+}
+
+function connect(string $name): PDO
+{
+    $cfg = astro_db_config();
+    $dsn = 'mysql:host=' . $cfg['host'] . ';port=' . $cfg['port'] . ';dbname=' . $name . ';charset=utf8mb4';
+
+    return new PDO($dsn, $cfg['user'], $cfg['pass'], [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+}
 
 function db(): PDO
 {
@@ -20,12 +39,12 @@ function db(): PDO
         return $connection;
     }
 
-    $connection = connect(DB_NAME);
+    $connection = connect(astro_db_config()['name']);
 
     return $connection;
 }
 
-/** Separate read/write handle for catalogue_db (spec R12). */
+/** Separate handle for the catalogue database (spec R12). */
 function catalog_db(): PDO
 {
     static $connection;
@@ -34,18 +53,8 @@ function catalog_db(): PDO
         return $connection;
     }
 
-    $connection = connect(CATALOGUE_DB_NAME);
+    $connection = connect(astro_db_config()['catalogue']);
 
     return $connection;
 }
 
-function connect(string $name): PDO
-{
-    $dsn = 'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . $name . ';charset=utf8mb4';
-
-    return new PDO($dsn, DB_USER, DB_PASS, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
-}
