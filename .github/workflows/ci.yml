@@ -16,7 +16,7 @@ jobs:
       mariadb:
         image: mariadb:11
         env:
-          MARIADB_ALLOW_EMPTY_PASSWORD: "yes"
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "yes"
           MARIADB_DATABASE: astronomical_db
         ports:
           - 3306:3306
