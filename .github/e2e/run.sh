@@ -60,6 +60,10 @@ ck "approved members are active (R1)" $([ "$(mysqlq "SELECT COUNT(*) FROM astron
 TLA=$(tok $LJ "$BASE?page=login")
 act $LJ "action=login&csrf_token=$TLA&username=alice&password=testpass99" $WORK/lia.html >/dev/null
 ck "approved member logs in successfully" $(grep -qi 'welcome back, alice' $WORK/lia.html && echo 0 || echo 1)
+TBB=$(tok $BJ "$BASE?page=login")
+act $BJ "action=login&csrf_token=$TBB&username=bob&password=testpass99" >/dev/null
+TCC=$(tok $CJ "$BASE?page=login")
+act $CJ "action=login&csrf_token=$TCC&username=carol&password=testpass99" >/dev/null
 
 TB=$(tok $BJ "$BASE?page=login")
 BADL=$(curl -s -b $BJ -c $BJ --data "action=login&csrf_token=TOTALLYWRONGTOKEN&username=bob&password=testpass99" -o /dev/null -w '%{http_code}' "$BASE")

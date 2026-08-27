@@ -145,9 +145,9 @@ if ($action === 'create_thread') {
                 flash('error', 'A proposed entry needs at least a name and an object type.');
                 redirect('new_thread');
             }
-            $mag = $_POST['apparent_mag'] !== '' ? (float) $_POST['apparent_mag'] : null;
-            $distance = $_POST['distance_ly'] !== '' ? (float) $_POST['distance_ly'] : null;
-            $year = $_POST['discovery_year'] !== '' ? (int) $_POST['discovery_year'] : null;
+            $mag = ($_POST['apparent_mag'] ?? '') !== '' ? (float) $_POST['apparent_mag'] : null;
+            $distance = ($_POST['distance_ly'] ?? '') !== '' ? (float) $_POST['distance_ly'] : null;
+            $year = ($_POST['discovery_year'] ?? '') !== '' ? (int) $_POST['discovery_year'] : null;
 
             $proposalPayload = [
                 'field' => null,
