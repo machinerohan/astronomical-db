@@ -25,3 +25,57 @@ nav { color: #d6d9dc; font-size: 13px; gap: 18px; } nav a:hover, .text-link:hove
 .page-heading { margin: 20px 0 28px; }.page-heading h1 { font-size: 32px; margin: 10px 0; }.dashboard-grid { gap: 12px; }.stat-panel { min-height: 145px; }.stat-panel strong { font-family: Arial, Helvetica, sans-serif; font-size: 28px; font-weight: 700; margin: 18px 0 8px; }.profile-panel dl { margin-top: 18px; }.queue-panel { max-width: none; margin: 0; }.queue-icon { color: var(--coral); }.user-row { padding: 16px 0; }.approve-button { background: var(--teal); }.empty-state { padding-top: 18px; }
 footer { border-top: 1px solid var(--line); color: var(--muted); display: flex; justify-content: space-between; margin: 0 auto; max-width: 1240px; padding: 18px 32px 30px; }
 @media (max-width: 760px) { .topbar { padding: 11px 20px; }.shell { padding: 18px 20px 45px; }.hero { padding: 22px; }.hero h1, .auth-intro h1, .page-heading h1 { font-size: 28px; }.auth-layout { margin: 18px auto; }.auth-intro { padding-bottom: 8px; }.form-panel, .queue-panel { padding: 20px; } }
+
+/* Forum Styles */
+.category-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin-top: 20px; }
+.category-card { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; display: block; padding: 20px; text-decoration: none; transition: all 0.2s; }
+.category-card:hover { border-color: var(--coral); box-shadow: var(--shadow); }
+.category-card .category-type { display: block; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.category-card h3 { margin: 8px 0 4px; font-size: 18px; color: var(--ink); }
+.category-card p { font-size: 13px; color: var(--muted); margin: 0; }
+
+.thread-list { border-top: 1px solid var(--line); }
+.thread-row { border-bottom: 1px solid var(--line); display: grid; gap: 20px; grid-template-columns: 1fr auto; padding: 16px 0; align-items: center; }
+.thread-info a { display: block; font-weight: 700; color: var(--teal); font-size: 15px; margin-bottom: 4px; }
+.thread-info a:hover { text-decoration: underline; }
+.thread-meta { display: block; font-size: 12px; color: var(--muted); }
+.thread-type { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.thread-posts { margin: 30px 0; }
+.post { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; margin-bottom: 16px; padding: 20px; }
+.post-header { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+.post-author { display: block; font-weight: 700; color: var(--teal); }
+.post-author:hover { text-decoration: underline; }
+.post-badge { background: #f0f0f0; border-radius: 3px; font-size: 11px; padding: 3px 8px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+.post-badge.op { background: var(--coral); color: white; }
+.post-date { font-size: 12px; color: var(--muted); margin-left: auto; }
+.post-body { font-size: 14px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+
+.username-badge { background: var(--teal); color: white; font-size: 11px; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+
+.activity-list { border-top: 1px solid var(--line); }
+.activity-item { border-bottom: 1px solid var(--line); padding: 14px 0; display: grid; gap: 8px; grid-template-columns: 1fr; }
+.activity-item .activity-type { font-size: 11px; color: var(--coral); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+.activity-item .activity-type.proposal-approved { color: var(--teal); }
+.activity-item .activity-type.proposal-rejected { color: #d97706; }
+.activity-item a { color: var(--teal); font-weight: 600; }
+.activity-item .activity-date { font-size: 12px; color: var(--muted); }
+
+.proposals-list { display: grid; gap: 16px; }
+.proposal-card { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 20px; }
+.proposal-header { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.proposal-header h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.proposal-user { font-size: 12px; color: var(--muted); }
+.proposal-context { font-size: 13px; margin: 8px 0; }
+.proposal-context a { color: var(--teal); }
+.proposal-date { display: block; font-size: 12px; color: var(--muted); margin: 12px 0; }
+.proposal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.proposal-actions input { padding: 8px; font-size: 12px; border: 1px solid var(--line); border-radius: 3px; }
+.proposal-actions button { padding: 8px 12px; font-size: 12px; border-radius: 3px; border: 0; cursor: pointer; }
+
+select { background: var(--paper); border: 1px solid var(--line); border-radius: 3px; color: var(--ink); font: 13px inherit; padding: 9px; cursor: pointer; }
+select:focus { border-color: var(--teal); outline: 0; box-shadow: 0 0 0 3px rgba(77, 129, 122, .12); }
+textarea { background: var(--paper); border: 1px solid var(--line); border-radius: 3px; color: var(--ink); font: 13px inherit; padding: 9px; resize: vertical; }
+textarea:focus { border-color: var(--teal); outline: 0; box-shadow: 0 0 0 3px rgba(77, 129, 122, .12); }
+
+.muted { color: var(--muted); }
