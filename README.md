@@ -30,7 +30,65 @@ mysql -u root < db\seed.sql
    administrator. Remove or protect `setup.php` afterwards.
 5. Register a member, approve them via **Admin desk**, and start posting.
 
-### Linux — Nix
+### Linux — clone and serve (Ubuntu/Debian)
+
+```bash
+git clone -b forum-core https://github.com/machinerohan/astronomical-db.git
+cd astronomical-db
+
+sudo service mysql start                      # or: sudo systemctl start mysql
+
+sudo mysql -e "DROP DATABASE IF EXISTS astronomical_db; DROP DATABASE IF EXISTS catalogue_db;"
+
+sudo mysql < db/schema.sql
+sudo mysql < db/schema-forum.sql
+sudo mysql < db/seed.sql
+```
+
+The schema files are safe to re-run — nothing fails with
+`trigger already exists` a second time.
+
+#### First run on stock Ubuntu/Debian MySQL
+
+Ubuntu's MySQL only accepts `root` through `sudo` (unix_socket auth), which the
+PHP app cannot use over TCP. Create an application user instead of weakening
+root:
+
+```bash
+sudo mysql <<'SQL'
+CREATE USER IF NOT EXISTS astro@localhost IDENTIFIED BY 'astrodemo';
+GRANT ALL ON astronomical_db.* TO astro@localhost;
+GRANT ALL ON catalogue_db.* TO astro@localhost;
+FLUSH PRIVILEGES;
+SQL
+
+ASTRO_DB_USER=astro ASTRO_DB_PASS=astrodemo php -S 127.0.0.1:8080 -t web/
+```
+
+Open **http://127.0.0.1:8080/setup.php** once to create the first
+administrator, then start using the forum. Remove or protect `setup.php`
+afterwards on any shared host.
+
+> Alternative (XAMPP-style, empty root password over TCP): run
+> `sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('')"`
+> and then plain `php -S 127.0.0.1:8080 -t web/` without environment variables.
+
+### Database credentials
+
+`web/config.php` defaults to `127.0.0.1:3306`, user `root`, empty password,
+databases `astronomical_db` + `catalogue_db`. Every value can be overridden via
+environment variables — useful for anything that is not XAMPP:
+
+| Variable | Default |
+|---|---|
+| `ASTRO_DB_HOST` | `127.0.0.1` |
+| `ASTRO_DB_PORT` | `3306` |
+| `ASTRO_DB_USER` | `root` |
+| `ASTRO_DB_PASS` | *(empty)* |
+| `ASTRO_DB_NAME` | `astronomical_db` |
+| `ASTRO_CATALOGUE_DB` | `catalogue_db` |
+
+### Nix development shell
 
 ```bash
 nix develop
