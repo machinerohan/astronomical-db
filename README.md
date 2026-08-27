@@ -1,56 +1,68 @@
-# Astronomical Objects Database
+# AstroForum — Astronomical Objects Database & Community Catalogue
 
-MySQL/MariaDB database of astronomical objects (stars, galaxies, nebulae, planets).
+A StackOverflow-like forum layered on a crowdsourced astronomical catalogue,
+implementing `SPEC.md`. Two MySQL/MariaDB databases on one server:
+
+| Database | Contents | Loaded by |
+|---|---|---|
+| `catalogue_db` | astronomical objects, observer pictures | `db/schema.sql` |
+| `astronomical_db` | users, categories/subforums, threads, posts, proposals, disputes, verifications | `db/schema-forum.sql` |
+
+Forum rows reference catalogue objects by plain integer columns — cross-database
+foreign keys are not portable, so integrity is enforced by `web/functions.php`.
 
 ## Setup
 
-### Windows — XAMPP
+### Windows / macOS — XAMPP
 
 1. Install [XAMPP](https://www.apachefriends.org/), start **Apache** and **MySQL**.
-2. From the XAMPP shell:
+2. Load both databases from the XAMPP shell (repo root):
 
 ```batch
 mysql -u root < db\schema.sql
+mysql -u root < db\schema-forum.sql
 mysql -u root < db\seed.sql
 ```
 
-The `astronomical_db` database is now ready with the `objects` table and sample data.
-
-### macOS — XAMPP
-
-1. Install [XAMPP](https://www.apachefriends.org/), then open **XAMPP Manager**
-	and start **MySQL**. Start **Apache** too if you want to use the PHP frontend.
-2. From the project directory, load the schema and sample data using XAMPP's
-	bundled MySQL client:
-
-```bash
-/Applications/XAMPP/xamppfiles/bin/mysql -u root < db/schema.sql
-/Applications/XAMPP/xamppfiles/bin/mysql -u root < db/seed.sql
-```
-
-The `astronomical_db` database is now ready with the `objects` table and sample
-data. If you configured a root password, add `-p` to both commands.
+3. Copy the `web` directory into XAMPP's htdocs (`C:\xampp\htdocs\astroforum`
+   or `/Applications/XAMPP/htdocs/astroforum`).
+4. Open `http://localhost/astroforum/setup.php` once to create the first
+   administrator. Remove or protect `setup.php` afterwards.
+5. Register a member, approve them via **Admin desk**, and start posting.
 
 ### Linux — Nix
 
 ```bash
 nix develop
-
-# First time: loads schema
-mysql < db/schema.sql
-mysql < db/seed.sql
-
-# Or start the server manually and connect:
-mysqld &                          # start in background
-mysql                             # connect (uses project socket)
-mysqladmin shutdown               # stop the server
+mysql < db/schema.sql && mysql < db/schema-forum.sql && mysql < db/seed.sql
+php -S 127.0.0.1:8080 -t web/
 ```
 
-The Nix shell provides `mysql`, `mysqld`, and `mysqladmin` pre-configured
-with a local data directory (`.mysql-data/`).
+### Features (mapped to SPEC.md)
 
-## Schema
+1. Admin approval of registrations — pending queue in **Admin desk**.
+2. Discussion & identification threads in general/object-type subforums.
+3. Identification may only be requested in an identification thread's opening
+   message; only the author confirms, linking the thread to a catalogue entry.
+4. Proposal threads add entries (`add_entry`) or edit fields (`edit_field`),
+   with optional attached pictures.
+5. Experts/verified/admins approve or reject proposals; **rejections must carry
+   a reason posted as a reply**; approval applies the change to `catalogue_db`,
+   records it in `object_edits`, and auto-promotes authors after 3 approvals.
+6. Approved proposals can be disputed; anyone except the original approver can
+   resolve — upholding reverts the change (or removes the created object).
+7. Two upheld reverts against a member's proposals strip their auto-granted
+   expert standing.
+8. Admins verify users (equal rights to experts) with mandatory recorded reason;
+   admins restrict/unrestrict verified/expert members; every action is logged in
+   `verifications`.
+9. Subforums per object type (categories seeded); approval/rejection/dispute
+   outcomes all post reply messages back into the proposal thread, linked to
+   posts or catalogue entries.
+10. Profile pages show standing stats and post/proposal/dispute history.
+11. Pictures attach to proposals, then move onto the catalogue entry on
+    approval; object pages and cards display them.
+12. Catalogue lives in its own database (`R12`).
 
-Run `db/schema.sql` to create the `objects` table with columns for name,
-catalog ID, object type, coordinates, magnitude, constellation, distance,
-discovery details, and notes.
+Tuning constants live at the top of `web/functions.php`
+(`EXPERT_PROMOTION_THRESHOLD = 3`, `REVERTS_BEFORE_EXPERT_LOSS = 2`).

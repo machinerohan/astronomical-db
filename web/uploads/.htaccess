@@ -1,0 +1,7 @@
+# Uploaded pictures are static assets only — never execute anything from here.
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .phar
+AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .phps .phar
+<FilesMatch "\.(?i:php|phtml|phar)\d*$">
+    Require all denied
+</FilesMatch>
+Options -ExecCGI -Indexes
