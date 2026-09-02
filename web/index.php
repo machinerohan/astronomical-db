@@ -263,8 +263,8 @@ function page_title(string $page, ?string $extra = null): string
             </section>
 
         <!-- FORUM LISTING -->
-        <?php elseif ($page === 'forum') {
-            if ($category_slug) {
+        <?php elseif ($page === 'forum'):
+            if ($category_slug):
                 $category = get_category_by_slug($category_slug);
                 if (!$category) {
                     redirect('forum');
@@ -303,7 +303,7 @@ function page_title(string $page, ?string $extra = null): string
                 </div>
             <?php endif; ?>
             </section>
-        <?php } else { 
+        <?php else:
             // Show all categories
         ?>
             <section class="hero"><div class="hero-copy"><p class="eyebrow">Astronomy questions</p><h1>Ask questions. Share what you know.</h1><p class="hero-text">A place to discuss astronomical objects and keep useful answers in one catalogue.</p>
@@ -326,14 +326,14 @@ function page_title(string $page, ?string $extra = null): string
                 <?php endforeach; ?>
             </div>
             </section>
-        <?php } } ?>
+        <?php endif; ?>
 
         <!-- THREAD VIEW -->
-        <?php elseif ($page === 'thread' && $thread_id) { 
+        <?php elseif ($page === 'thread' && $thread_id):
             $thread = get_thread_by_id($thread_id);
-            if (!$thread) {
+            if (!$thread):
                 $page = 'home';
-            } else {
+            else:
                 $posts = get_posts_for_thread($thread_id);
         ?>
             <section class="page-heading">
@@ -370,7 +370,7 @@ function page_title(string $page, ?string $extra = null): string
                 </section>
             <?php endif; ?>
 
-        <?php } } ?>
+        <?php endif; ?>
 
         <!-- APPROVALS DASHBOARD -->
         <?php elseif ($page === 'approvals'): 
