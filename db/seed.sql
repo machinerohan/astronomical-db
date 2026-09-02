@@ -1,4 +1,4 @@
-USE astronomical_db;
+USE astronomical_catalogue;
 
 -- Skeleton seed rows (replace / extend as needed)
 INSERT INTO objects (name, catalog_id, object_type, right_ascension, declination, apparent_mag, constellation, distance_ly, discovered_by, discovery_year)
@@ -8,6 +8,8 @@ VALUES
   ('Orion',      'M42',      'nebula',  83.822083,  -5.391111,  4.000,  'Orion',          1344,  NULL, 1610);
 
 -- Forum categories for different object types
+USE astronomical_forum;
+
 INSERT INTO categories (name, slug, object_type, description)
 VALUES
   ('General Discussion', 'general', NULL, 'Off-topic discussions about astronomy and the catalogue'),

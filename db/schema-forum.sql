@@ -1,4 +1,8 @@
-USE astronomical_db;
+CREATE DATABASE IF NOT EXISTS astronomical_forum
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+USE astronomical_forum;
 
 -- 1. Users
 CREATE TABLE IF NOT EXISTS users (
@@ -59,8 +63,7 @@ CREATE TABLE IF NOT EXISTS threads (
   KEY idx_threads_author (author_id),
   CONSTRAINT fk_threads_category FOREIGN KEY (category_id) REFERENCES categories(id),
   CONSTRAINT fk_threads_author   FOREIGN KEY (author_id)   REFERENCES users(id),
-  CONSTRAINT fk_threads_identified_object FOREIGN KEY (identified_object_id)
-    REFERENCES objects(id) ON DELETE SET NULL
+  KEY idx_threads_identified_object (identified_object_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS posts (
@@ -81,8 +84,7 @@ CREATE TABLE IF NOT EXISTS posts (
   CONSTRAINT fk_posts_author FOREIGN KEY (author_id) REFERENCES users(id),
   CONSTRAINT fk_posts_linked_post   FOREIGN KEY (linked_post_id)   REFERENCES posts(id)
     ON DELETE SET NULL,
-  CONSTRAINT fk_posts_linked_object FOREIGN KEY (linked_object_id) REFERENCES objects(id)
-    ON DELETE SET NULL
+  KEY idx_posts_linked_object (linked_object_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS proposals (
@@ -108,8 +110,7 @@ CREATE TABLE IF NOT EXISTS proposals (
   CONSTRAINT fk_proposals_post     FOREIGN KEY (post_id)   REFERENCES posts(id)
     ON DELETE CASCADE,
   CONSTRAINT fk_proposals_author   FOREIGN KEY (author_id) REFERENCES users(id),
-  CONSTRAINT fk_proposals_target   FOREIGN KEY (target_object_id) REFERENCES objects(id)
-    ON DELETE SET NULL,
+  KEY idx_proposals_target (target_object_id),
   CONSTRAINT fk_proposals_approver FOREIGN KEY (approver_id) REFERENCES users(id)
     ON DELETE SET NULL,
   CONSTRAINT chk_proposals_no_self_approve
@@ -129,6 +130,7 @@ CREATE TABLE IF NOT EXISTS proposed_objects (
   discovered_by   VARCHAR(128) NULL,
   discovery_year  SMALLINT UNSIGNED NULL,
   notes           TEXT NULL,
+  image_url       VARCHAR(500) NULL,
   PRIMARY KEY (id),
   CONSTRAINT fk_proposed_objects_proposal FOREIGN KEY (proposal_id) REFERENCES proposals(id)
     ON DELETE CASCADE
@@ -146,8 +148,6 @@ CREATE TABLE IF NOT EXISTS object_edits (
   PRIMARY KEY (id),
   KEY idx_object_edits_object (object_id),
   KEY idx_object_edits_proposal (proposal_id),
-  CONSTRAINT fk_object_edits_object   FOREIGN KEY (object_id)   REFERENCES objects(id)
-    ON DELETE CASCADE,
   CONSTRAINT fk_object_edits_proposal FOREIGN KEY (proposal_id) REFERENCES proposals(id)
     ON DELETE CASCADE,
   CONSTRAINT fk_object_edits_applier  FOREIGN KEY (applied_by)  REFERENCES users(id)

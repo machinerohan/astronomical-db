@@ -96,7 +96,7 @@ function csrf_field(): string
 function require_expert(): array
 {
     $user = require_user();
-    if ($user['expertise'] === 'normal' && $user['role'] !== 'admin') {
+    if ($user['is_restricted'] || ($user['expertise'] === 'normal' && $user['role'] !== 'admin')) {
         http_response_code(403);
         exit('Experts only.');
     }
@@ -109,6 +109,27 @@ function get_user_by_id(int $id): ?array
     $statement = db()->prepare('SELECT id, username, role, expertise, is_restricted, created_at FROM users WHERE id = ?');
     $statement->execute([$id]);
     return $statement->fetch();
+}
+
+function get_verification(int $userId): ?array
+{
+    $statement = db()->prepare('SELECT v.note, v.created_at, u.username AS verifier FROM verifications v JOIN users u ON u.id = v.verified_by_id WHERE v.user_id = ? ORDER BY v.created_at DESC LIMIT 1');
+    $statement->execute([$userId]);
+    return $statement->fetch() ?: null;
+}
+
+function get_catalogue_objects(int $limit = 100): array
+{
+    $statement = catalogue_db()->prepare('SELECT id, name, catalog_id, object_type, constellation, distance_ly FROM objects WHERE status = "active" ORDER BY name LIMIT ?');
+    $statement->execute([$limit]);
+    return $statement->fetchAll();
+}
+
+function get_catalogue_object(int $id): ?array
+{
+    $statement = catalogue_db()->prepare('SELECT id, name, catalog_id, object_type, constellation, distance_ly FROM objects WHERE id = ? AND status = "active"');
+    $statement->execute([$id]);
+    return $statement->fetch() ?: null;
 }
 
 function get_categories(): array
@@ -157,7 +178,7 @@ function get_thread_by_id(int $id): ?array
 function get_posts_for_thread(int $threadId): array
 {
     $statement = db()->prepare(
-        'SELECT p.id, p.body, p.is_solution, p.created_at, u.id as author_id, u.username, u.expertise, u.role
+        'SELECT p.id, p.body, p.is_solution, p.linked_post_id, p.linked_object_id, p.created_at, u.id as author_id, u.username, u.expertise, u.role
          FROM posts p
          JOIN users u ON p.author_id = u.id
          WHERE p.thread_id = ?
@@ -201,14 +222,46 @@ function create_post(int $threadId, int $authorId, string $body): int
     return (int) db()->lastInsertId();
 }
 
+function create_system_post(int $threadId, int $authorId, string $body, ?int $linkedObjectId = null): int
+{
+    $statement = db()->prepare('INSERT INTO posts (thread_id, author_id, body, linked_object_id) VALUES (?, ?, ?, ?)');
+    $statement->execute([$threadId, $authorId, $body, $linkedObjectId]);
+    return (int) db()->lastInsertId();
+}
+
 function create_proposal(int $threadId, int $authorId, string $type, ?string $field = null, ?string $newValue = null, ?int $targetObjectId = null): int
 {
+    $allowedFields = ['name', 'object_type', 'right_ascension', 'declination', 'apparent_mag', 'constellation', 'distance_ly', 'discovered_by', 'discovery_year', 'notes'];
+    if ($type !== 'edit_field' || !$field || !in_array($field, $allowedFields, true) || !$targetObjectId) {
+        throw new InvalidArgumentException('Invalid catalogue edit proposal.');
+    }
     $statement = db()->prepare(
         'INSERT INTO proposals (thread_id, author_id, type, field, new_value, target_object_id) 
          VALUES (?, ?, ?, ?, ?, ?)'
     );
     $statement->execute([$threadId, $authorId, $type, $field, $newValue, $targetObjectId]);
     return (int) db()->lastInsertId();
+}
+
+function create_add_proposal(int $threadId, int $postId, int $authorId, array $object): int
+{
+    $conn = db();
+    $conn->beginTransaction();
+    try {
+        $statement = $conn->prepare('INSERT INTO proposals (thread_id, post_id, author_id, type) VALUES (?, ?, ?, "add_entry")');
+        $statement->execute([$threadId, $postId, $authorId]);
+        $proposalId = (int) $conn->lastInsertId();
+        $statement = $conn->prepare(
+            'INSERT INTO proposed_objects (proposal_id, name, object_type, right_ascension, declination, apparent_mag, constellation, distance_ly, discovered_by, discovery_year, notes, image_url)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $statement->execute([$proposalId, $object['name'], $object['object_type'], $object['right_ascension'] ?: null, $object['declination'] ?: null, $object['apparent_mag'] ?: null, $object['constellation'] ?: null, $object['distance_ly'] ?: null, $object['discovered_by'] ?: null, $object['discovery_year'] ?: null, $object['notes'] ?: null, $object['image_url'] ?: null]);
+        $conn->commit();
+        return $proposalId;
+    } catch (Exception $exception) {
+        $conn->rollBack();
+        throw $exception;
+    }
 }
 
 function get_pending_proposals(int $limit = 20): array
@@ -239,35 +292,46 @@ function approve_proposal(int $proposalId, int $approverId, ?string $reason = nu
         $statement->execute([$approverId, $proposalId]);
         
         // Get proposal details
-        $statement = $conn->prepare('SELECT type, target_object_id, field, new_value FROM proposals WHERE id = ?');
+        $statement = $conn->prepare('SELECT type, target_object_id, field, new_value, thread_id, author_id FROM proposals WHERE id = ?');
         $statement->execute([$proposalId]);
         $proposal = $statement->fetch();
         
         if ($proposal['type'] === 'add_entry') {
-            // Create new object from proposal
-            $statement = $conn->prepare(
-                'INSERT INTO objects (name, catalog_id, object_type, right_ascension, declination, 
-                                    apparent_mag, constellation, distance_ly, discovered_by, discovery_year)
-                 SELECT name, NULL, object_type, right_ascension, declination, apparent_mag, 
-                        constellation, distance_ly, discovered_by, discovery_year
-                 FROM proposed_objects WHERE proposal_id = ?'
-            );
-            $statement->execute([$proposalId]);
+            $objectQuery = $conn->prepare('SELECT name, object_type, right_ascension, declination, apparent_mag, constellation, distance_ly, discovered_by, discovery_year, notes, image_url FROM proposed_objects WHERE proposal_id = ?');
+            $objectQuery->execute([$proposalId]);
+            $object = $objectQuery->fetch();
+            if (!$object) {
+                throw new RuntimeException('Proposal object data is missing.');
+            }
+            $catalogue = catalogue_db();
+            $insert = $catalogue->prepare('INSERT INTO objects (name, catalog_id, object_type, right_ascension, declination, apparent_mag, constellation, distance_ly, discovered_by, discovery_year, notes) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $insert->execute([$object['name'], $object['object_type'], $object['right_ascension'], $object['declination'], $object['apparent_mag'], $object['constellation'], $object['distance_ly'], $object['discovered_by'], $object['discovery_year'], $object['notes']]);
+            $objectId = (int) $catalogue->lastInsertId();
+            if ($object['image_url']) {
+                $catalogue->prepare('INSERT INTO object_images (object_id, proposal_id, uploaded_by, image_path, caption) VALUES (?, ?, ?, ?, ?)')->execute([$objectId, $proposalId, $proposal['author_id'], $object['image_url'], null]);
+              }
+            $conn->prepare('UPDATE threads SET identified_object_id = ? WHERE id = ? AND type = "identification"')->execute([$objectId, $proposal['thread_id']]);
         } elseif ($proposal['type'] === 'edit_field' && $proposal['target_object_id']) {
             // Apply edit to object
             $field = $proposal['field'];
             $value = $proposal['new_value'];
             $objectId = $proposal['target_object_id'];
             
-            $updateStmt = $conn->prepare("UPDATE objects SET {$field} = ? WHERE id = ?");
+            $oldStmt = catalogue_db()->prepare("SELECT {$field} FROM objects WHERE id = ?");
+            $oldStmt->execute([$objectId]);
+            $oldValue = $oldStmt->fetchColumn();
+            $updateStmt = catalogue_db()->prepare("UPDATE objects SET {$field} = ? WHERE id = ?");
             $updateStmt->execute([$value, $objectId]);
             
             // Log the edit
             $statement = $conn->prepare(
-                'INSERT INTO object_edits (object_id, proposal_id, field, new_value, applied_by) VALUES (?, ?, ?, ?, ?)'
+                'INSERT INTO object_edits (object_id, proposal_id, field, old_value, new_value, applied_by) VALUES (?, ?, ?, ?, ?, ?)'
             );
-            $statement->execute([$objectId, $proposalId, $field, $value, $approverId]);
+            $statement->execute([$objectId, $proposalId, $field, $oldValue, $value, $approverId]);
         }
+
+        create_system_post((int) $proposal['thread_id'], $approverId, 'Proposal approved and applied to the catalogue.', $proposal['type'] === 'add_entry' ? $objectId : $proposal['target_object_id']);
+        $conn->prepare('UPDATE users SET expertise = "expert" WHERE id = ? AND expertise = "normal" AND (SELECT COUNT(*) FROM proposals WHERE author_id = ? AND status = "approved") >= 3')->execute([$proposal['author_id'], $proposal['author_id']]);
         
         $conn->commit();
     } catch (Exception $e) {
@@ -278,10 +342,83 @@ function approve_proposal(int $proposalId, int $approverId, ?string $reason = nu
 
 function reject_proposal(int $proposalId, int $approverId, string $reason): void
 {
-    $statement = db()->prepare(
+    $conn = db();
+    $statement = $conn->prepare(
         'UPDATE proposals SET status = "rejected", approver_id = ?, reason = ?, resolved_at = NOW() WHERE id = ?'
     );
     $statement->execute([$approverId, $reason, $proposalId]);
+    $proposal = get_proposal($proposalId);
+    if ($proposal) {
+        create_system_post((int) $proposal['thread_id'], $approverId, 'Proposal rejected: ' . $reason);
+    }
+}
+
+function get_proposal(int $proposalId): ?array
+{
+    $statement = db()->prepare('SELECT p.*, t.title, t.author_id AS thread_author_id FROM proposals p JOIN threads t ON t.id = p.thread_id WHERE p.id = ?');
+    $statement->execute([$proposalId]);
+    return $statement->fetch() ?: null;
+}
+
+function create_dispute(int $proposalId, int $authorId, string $reason): void
+{
+    $proposal = get_proposal($proposalId);
+    if (!$proposal || $proposal['status'] !== 'approved' || (int) $proposal['author_id'] === $authorId || (int) $proposal['approver_id'] === $authorId) {
+        throw new RuntimeException('This proposal cannot be disputed by this user.');
+    }
+    $statement = db()->prepare('INSERT INTO disputes (proposal_id, author_id, reason) VALUES (?, ?, ?)');
+    $statement->execute([$proposalId, $authorId, $reason]);
+}
+
+function resolve_dispute(int $disputeId, int $resolverId, bool $approve): void
+{
+    $statement = db()->prepare('SELECT d.*, p.approver_id, p.author_id AS proposal_author_id, p.type, p.target_object_id, p.field, p.new_value FROM disputes d JOIN proposals p ON p.id = d.proposal_id WHERE d.id = ? AND d.status = "pending"');
+    $statement->execute([$disputeId]);
+    $dispute = $statement->fetch();
+    if (!$dispute || (int) $dispute['author_id'] === $resolverId || (int) $dispute['approver_id'] === $resolverId) {
+        throw new RuntimeException('This dispute cannot be resolved by this user.');
+    }
+    $conn = db();
+    $conn->beginTransaction();
+    try {
+        $conn->prepare('UPDATE disputes SET status = ?, resolver_id = ?, resolved_at = NOW() WHERE id = ?')->execute([$approve ? 'approved' : 'rejected', $resolverId, $disputeId]);
+        if ($approve) {
+            $conn->prepare('UPDATE proposals SET status = "reverted", resolved_at = NOW() WHERE id = ?')->execute([$dispute['proposal_id']]);
+            if ($dispute['type'] === 'edit_field' && $dispute['target_object_id']) {
+                $edit = db()->prepare('SELECT old_value FROM object_edits WHERE proposal_id = ?');
+                $edit->execute([$dispute['proposal_id']]);
+                if ($oldValue = $edit->fetchColumn()) {
+                    catalogue_db()->prepare('UPDATE objects SET ' . $dispute['field'] . ' = ? WHERE id = ?')->execute([$oldValue, $dispute['target_object_id']]);
+                }
+            }
+            $conn->prepare('UPDATE users SET expertise = "normal" WHERE id = ? AND expertise = "expert" AND (SELECT COUNT(*) FROM disputes WHERE author_id = ? AND status = "approved") >= 3')->execute([$dispute['proposal_author_id'], $dispute['proposal_author_id']]);
+        }
+        $conn->commit();
+    } catch (Exception $exception) {
+        $conn->rollBack();
+        throw $exception;
+    }
+}
+
+function get_pending_disputes(int $limit = 50): array
+{
+    $statement = db()->prepare('SELECT d.*, p.type, p.status AS proposal_status, u.username, t.title FROM disputes d JOIN proposals p ON p.id = d.proposal_id JOIN users u ON u.id = d.author_id JOIN threads t ON t.id = p.thread_id WHERE d.status = "pending" ORDER BY d.created_at DESC LIMIT ?');
+    $statement->execute([$limit]);
+    return $statement->fetchAll();
+}
+
+function get_disputes_for_proposal(int $proposalId): array
+{
+    $statement = db()->prepare('SELECT d.*, u.username FROM disputes d JOIN users u ON u.id = d.author_id WHERE d.proposal_id = ? ORDER BY d.created_at DESC');
+    $statement->execute([$proposalId]);
+    return $statement->fetchAll();
+}
+
+function get_proposals_for_thread(int $threadId): array
+{
+    $statement = db()->prepare('SELECT p.*, u.username AS author_name FROM proposals p JOIN users u ON u.id = p.author_id WHERE p.thread_id = ? ORDER BY p.created_at');
+    $statement->execute([$threadId]);
+    return $statement->fetchAll();
 }
 
 function get_user_stats(int $userId): array
