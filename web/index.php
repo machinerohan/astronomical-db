@@ -264,7 +264,7 @@ if ($action === 'approve_proposal') {
             approve_proposal($propId, $expert['id']);
             flash('success', 'Proposal approved!');
         } catch (Exception $e) {
-            flash('error', 'Could not approve proposal.');
+            flash('error', $e->getMessage());
         }
     }
     redirect('approvals');

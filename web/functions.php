@@ -281,6 +281,16 @@ function get_pending_proposals(int $limit = 20): array
 function approve_proposal(int $proposalId, int $approverId, ?string $reason = null): void
 {
     $conn = db();
+    $ownership = $conn->prepare('SELECT author_id, status FROM proposals WHERE id = ?');
+    $ownership->execute([$proposalId]);
+    $proposalState = $ownership->fetch();
+    if (!$proposalState || $proposalState['status'] !== 'pending') {
+        throw new RuntimeException('This proposal is no longer pending.');
+    }
+    if ((int) $proposalState['author_id'] === $approverId) {
+        throw new RuntimeException('You cannot approve your own proposal. Ask another expert or admin to review it.');
+    }
+
     $conn->beginTransaction();
     
     try {
@@ -301,7 +311,7 @@ function approve_proposal(int $proposalId, int $approverId, ?string $reason = nu
                 throw new RuntimeException('Proposal object data is missing.');
             }
             $catalogue = catalogue_db();
-            $insert = $catalogue->prepare('INSERT INTO objects (name, catalog_id, object_type, right_ascension, declination, apparent_mag, constellation, distance_ly, discovered_by, discovery_year, notes) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $insert = $catalogue->prepare('INSERT INTO objects (name, catalog_id, object_type, right_ascension, declination, apparent_mag, constellation, distance_ly, discovered_by, discovery_year, notes) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $insert->execute([$object['name'], $object['object_type'], $object['right_ascension'], $object['declination'], $object['apparent_mag'], $object['constellation'], $object['distance_ly'], $object['discovered_by'], $object['discovery_year'], $object['notes']]);
             $objectId = (int) $catalogue->lastInsertId();
             if ($object['image_url']) {
