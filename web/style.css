@@ -13,7 +13,6 @@ nav { align-items: center; display: flex; font-size: 13px; font-weight: 700; gap
 .page-heading { margin: 35px 0 45px; }.page-heading h1 { font-size: clamp(48px, 6vw, 70px); margin: 14px 0; }.page-heading > p:last-child { color: var(--muted); }.dashboard-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, 1fr); }.stat-panel { box-shadow: none; min-height: 180px; }.stat-panel strong { display: block; font-family: Georgia, serif; font-size: 36px; font-weight: 400; margin: 22px 0 10px; }.stat-panel p { color: var(--muted); font-size: 12px; }.profile-panel { grid-column: 1 / -1; }.profile-panel dl { display: grid; gap: 15px; grid-template-columns: repeat(3, 1fr); margin: 25px 0 0; }.profile-panel dl div { border-top: 1px solid var(--line); padding-top: 14px; }.profile-panel dt { color: var(--muted); font-size: 11px; }.profile-panel dd { font-size: 14px; font-weight: 700; margin: 7px 0; }.status-active { color: var(--teal); }.queue-panel { max-width: 900px; margin: 0 auto; }.queue-icon { color: var(--coral); font-size: 46px; }.user-list { border-top: 1px solid var(--line); }.user-row { align-items: center; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; padding: 20px 0; }.user-row strong, .user-row span { display: block; }.user-row span { color: var(--muted); font-size: 11px; margin-top: 6px; }.row-actions { display: flex; gap: 9px; }.row-actions button { border: 0; border-radius: 2px; cursor: pointer; font: 700 11px 'Manrope', sans-serif; padding: 10px 13px; }.approve-button { background: var(--teal); color: white; }.reject-button { background: transparent; border: 1px solid var(--line) !important; color: var(--coral-dark); }.empty-state { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 24px 0 0; }.setup-shell { margin: 0 auto; max-width: 480px; padding: 12vh 24px; }.setup-shell .form-panel h1 { font-size: 50px; }.setup-shell .brand { margin-bottom: 80px; }.button-link { margin-top: 20px; }.setup-shell > .form-panel > p:not(.eyebrow) { color: var(--muted); font-size: 13px; line-height: 1.7; } footer { color: var(--muted); display: flex; justify-content: space-between; margin: 0 auto; max-width: 1240px; padding: 0 32px 28px; }
 @media (max-width: 760px) { .topbar { padding: 20px; } nav { gap: 13px; } nav a:first-child { display: none; }.shell { padding: 18px 20px 60px; }.hero { display: block; min-height: auto; padding: 42px 28px 48px; }.hero h1 { font-size: 52px; }.hero-coordinate { border-left: 0; border-top: 1px solid rgba(255,255,255,.25); margin-top: 55px; padding: 25px 0 0; }.hero-coordinate strong { font-size: 70px; }.object-grid, .dashboard-grid { grid-template-columns: 1fr; }.profile-panel { grid-column: auto; }.profile-panel dl { grid-template-columns: 1fr; }.auth-layout { display: block; margin: 25px auto; }.auth-intro { padding: 15px 0 35px; }.auth-intro h1 { font-size: 52px; }.section-head { display: block; }.section-note { display: block; margin-bottom: 18px; }.form-panel, .queue-panel { padding: 27px 22px; }.user-row { align-items: flex-start; display: block; }.row-actions { margin-top: 15px; }.row-actions form { display: inline-block; } footer { display: block; line-height: 2; padding: 0 20px 25px; } }
 
-/* Compact Q&A layout */
 :root { --ink: #232629; --muted: #6a737c; --cream: #f8f9f9; --paper: #ffffff; --line: #d6d9dc; --coral: #e76f00; --coral-dark: #b65300; --teal: #0077cc; --shadow: 0 1px 2px rgba(0, 0, 0, .08); }
 body { background: var(--cream); color: var(--ink); font-family: Arial, Helvetica, sans-serif; font-size: 13px; }
 .topbar { background: #101214; border-top: 3px solid var(--coral); max-width: none; padding: 11px max(24px, calc((100% - 1240px) / 2)); }
@@ -26,7 +25,6 @@ nav { color: #d6d9dc; font-size: 13px; gap: 18px; } nav a:hover, .text-link:hove
 footer { border-top: 1px solid var(--line); color: var(--muted); display: flex; justify-content: space-between; margin: 0 auto; max-width: 1240px; padding: 18px 32px 30px; }
 @media (max-width: 760px) { .topbar { padding: 11px 20px; }.shell { padding: 18px 20px 45px; }.hero { padding: 22px; }.hero h1, .auth-intro h1, .page-heading h1 { font-size: 28px; }.auth-layout { margin: 18px auto; }.auth-intro { padding-bottom: 8px; }.form-panel, .queue-panel { padding: 20px; } }
 
-/* Forum Styles */
 .category-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin-top: 20px; }
 .category-card { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; display: block; padding: 20px; text-decoration: none; transition: all 0.2s; }
 .category-card:hover { border-color: var(--coral); box-shadow: var(--shadow); }
@@ -80,6 +78,7 @@ textarea:focus { border-color: var(--teal); outline: 0; box-shadow: 0 0 0 3px rg
 
 .muted { color: var(--muted); }
 
+
 .primary-button:hover,
 .primary-button:focus-visible {
 	background: var(--coral-dark);
@@ -100,7 +99,6 @@ textarea:focus { border-color: var(--teal); outline: 0; box-shadow: 0 0 0 3px rg
 .stack button.primary-button:focus-visible {
 	background-color: #d64b35 !important;
 }
-/* Modern observatory theme */
 :root {
 	--ink: #182235;
 	--muted: #667085;
@@ -138,6 +136,8 @@ body {
 
 .brand > span:last-child span { color: #ff9a78; }
 .brand-mark { background: var(--coral); border-radius: 9px; color: #fff; }
+.setup-shell .brand { color: var(--ink); }
+.setup-shell .brand > span:last-child span { color: var(--coral); }
 nav { color: #cbd5e1; font-weight: 600; }
 nav a:hover, .text-link:hover { color: #fff; }
 .nav-cta { border-color: #8b98aa; border-radius: 8px; transition: background .2s ease, border-color .2s ease; }
@@ -150,11 +150,13 @@ nav a:hover, .text-link:hover { color: #fff; }
 	border: 0;
 	border-radius: 18px;
 	box-shadow: 0 24px 55px rgba(24, 34, 53, .18);
+	color: #f8fafc;
 	min-height: 420px;
 }
 .hero:after { border-color: rgba(255, 154, 120, .35); }
 .hero h1, .auth-intro h1, .page-heading h1, .setup-shell h1 { font-family: 'Manrope', sans-serif; font-weight: 800; letter-spacing: -.045em; }
-.hero h1 { font-size: clamp(42px, 5.2vw, 72px); }
+.hero h1 { color: #ffffff; font-size: clamp(42px, 5.2vw, 72px); }
+.hero .eyebrow { color: #f5c978; }
 .hero-text { color: #cbd5e1; }
 .hero-actions { gap: 20px; }
 .primary-button {

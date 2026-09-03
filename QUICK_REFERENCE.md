@@ -122,40 +122,44 @@
 
 ## Database Commands
 
+The application uses two databases: `astronomical_catalogue` and `astronomical_forum`.
+
 ### Backup Database
 ```bash
-mysqldump -u root astronomical_db > backup.sql
+mysqldump -u root astronomical_catalogue > catalogue-backup.sql
+mysqldump -u root astronomical_forum > forum-backup.sql
 ```
 
 ### Restore Database
 ```bash
-mysql -u root astronomical_db < backup.sql
+mysql -u root astronomical_catalogue < catalogue-backup.sql
+mysql -u root astronomical_forum < forum-backup.sql
 ```
 
 ### View All Users
 ```bash
-mysql -u root -e "SELECT id, username, role, expertise, registration_status FROM astronomical_db.users;"
+mysql -u root -e "SELECT id, username, role, expertise, registration_status FROM astronomical_forum.users;"
 ```
 
 ### View All Proposals
 ```bash
-mysql -u root -e "SELECT id, type, status, author_id FROM astronomical_db.proposals;"
+mysql -u root -e "SELECT id, type, status, author_id FROM astronomical_forum.proposals;"
 ```
 
 ### View All Threads
 ```bash
-mysql -u root -e "SELECT id, title, type, status FROM astronomical_db.threads;"
+mysql -u root -e "SELECT id, title, type, status FROM astronomical_forum.threads;"
 ```
 
 ### Reset Admin (if needed)
 ```bash
-mysql -u root -e "DELETE FROM astronomical_db.users WHERE role='admin';"
+mysql -u root -e "DELETE FROM astronomical_forum.users WHERE role='admin';"
 # Then recreate via setup.php
 ```
 
 ### View Recent Posts
 ```bash
-mysql -u root -e "SELECT * FROM astronomical_db.posts ORDER BY created_at DESC LIMIT 10;"
+mysql -u root -e "SELECT * FROM astronomical_forum.posts ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ## Troubleshooting

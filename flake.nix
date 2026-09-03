@@ -25,7 +25,6 @@
             MYSQLSOCK="$MYSQLDATA/mysql.sock"
             export MYSQLDATA MYSQLSOCK
 
-            # Initialize data directory once
             if [ ! -d "$MYSQLDATA/mysql" ]; then
               mkdir -p "$MYSQLDATA"
               mysql_install_db --datadir="$MYSQLDATA" --auth-root-authentication-method=normal >/dev/null 2>&1

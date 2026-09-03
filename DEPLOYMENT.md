@@ -6,7 +6,7 @@ Complete step-by-step guide to deploy the Astronomical Objects Database & Forum 
 
 - **XAMPP** installed (Apache + MySQL + PHP)
   - Download: https://www.apachefriends.org/
-  - PHP 7.4+ required
+- PHP 7.4+ required (included with XAMPP)
 - **Windows Command Prompt** or **Terminal** (macOS/Linux)
 - Project files in `c:\xampp\htdocs\astronomical-db\` (Windows) or equivalent
 
@@ -69,7 +69,9 @@ mysql -u root -p < db\schema.sql
 mysql -u root
 # At MySQL prompt:
 SHOW DATABASES;
-USE astronomical_db;
+USE astronomical_catalogue;
+SHOW TABLES;
+USE astronomical_forum;
 SHOW TABLES;
 EXIT;
 ```
@@ -85,7 +87,8 @@ Edit `web/config.php` if your MySQL setup differs:
 ```php
 const DB_HOST = '127.0.0.1';    // Usually 127.0.0.1 or localhost
 const DB_PORT = '3306';         // Default MySQL port
-const DB_NAME = 'astronomical_db';
+const DB_NAME = 'astronomical_forum';
+const CATALOGUE_DB_NAME = 'astronomical_catalogue';
 const DB_USER = 'root';         // XAMPP default user
 const DB_PASS = '';             // Add password if you set one
 ```
@@ -222,14 +225,14 @@ You should see the home page with:
 **Solution**:
 - Database may not be initialized
 - Re-run: `mysql -u root < db\schema.sql`
-- Make sure `astronomical_db` database exists
+- Make sure both `astronomical_catalogue` and `astronomical_forum` databases exist
 
 ### Issue: White screen after login
 
 **Solution**:
 - Check PHP error log: `xampp/php/logs/php_error.log`
 - Verify `config.php` database credentials
-- Ensure database tables exist: `mysql -u root` then `USE astronomical_db; SHOW TABLES;`
+- Ensure database tables exist in both databases: `USE astronomical_catalogue; SHOW TABLES;` and `USE astronomical_forum; SHOW TABLES;`
 
 ### Issue: "The page you are looking for cannot be found"
 
@@ -243,12 +246,11 @@ You should see the home page with:
 **Solution**:
 - Admin already exists (only one can be created)
 - Refresh the page with `Ctrl+Shift+Delete` to clear browser cache
-- If you need to reset, delete the user: `mysql -u root -e "USE astronomical_db; DELETE FROM users WHERE role='admin';"`
+- If you need to reset, delete the user: `mysql -u root -e "DELETE FROM astronomical_forum.users WHERE role='admin';"`
 
 ### Issue: Images/CSS not loading (page looks broken)
 
 **Solution**:
-- This is expected - no image CDN configured
 - Styles use Google Fonts via CDN (should work with internet)
 - If offline, comment out `@import url(...)` in `style.css`
 
@@ -257,13 +259,15 @@ You should see the home page with:
 ### Export Current Database
 
 ```bash
-mysqldump -u root astronomical_db > backup.sql
+mysqldump -u root astronomical_catalogue > catalogue-backup.sql
+mysqldump -u root astronomical_forum > forum-backup.sql
 ```
 
 ### Restore from Backup
 
 ```bash
-mysql -u root astronomical_db < backup.sql
+mysql -u root astronomical_catalogue < catalogue-backup.sql
+mysql -u root astronomical_forum < forum-backup.sql
 ```
 
 ## Performance Notes
@@ -287,7 +291,7 @@ ini_set('display_errors', 1);
 
 ```bash
 mysql -u root
-USE astronomical_db;
+USE astronomical_forum;
 
 # View all users
 SELECT id, username, role, expertise FROM users;

@@ -8,7 +8,7 @@ The astronomical forum database and community platform has been fully built acco
 
 ## What's Been Built
 
-### 1. Database System (astronomical_db)
+### 1. Database System (two MySQL/MariaDB databases)
 
 **Catalogue Database** (`db/schema.sql`)
 - `objects` table with astronomical objects (stars, galaxies, nebulae)
@@ -198,7 +198,6 @@ See README.md or DEPLOYMENT.md for platform-specific instructions
 - [x] Complete documentation
 
 ### Optional (Not included - future work)
-- [ ] Image upload/gallery
 - [ ] Email notifications
 - [ ] Full-text search
 - [ ] Markdown support
@@ -263,12 +262,14 @@ See TESTING.md for complete checklist.
 
 **Database Backups**:
 ```bash
-mysqldump -u root astronomical_db > backup_$(date +%Y%m%d).sql
+mysqldump -u root astronomical_catalogue > catalogue-backup_$(date +%Y%m%d).sql
+mysqldump -u root astronomical_forum > forum-backup_$(date +%Y%m%d).sql
 ```
 
 **Restore from Backup**:
 ```bash
-mysql -u root astronomical_db < backup_20260827.sql
+mysql -u root astronomical_catalogue < catalogue-backup_20260827.sql
+mysql -u root astronomical_forum < forum-backup_20260827.sql
 ```
 
 **Monitor Logs**:
@@ -291,10 +292,7 @@ mysql -u root astronomical_db < backup_20260827.sql
 4. **No Search**: Must browse categories
    - Could implement full-text search
 
-5. **No Images**: Text-only proposals
-   - Could add image upload
-
-6. **No Email**: No notifications
+5. **No Email**: No notifications
    - Could integrate with mail service
 
 ## Technology Stack

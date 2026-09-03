@@ -4,7 +4,6 @@ CREATE DATABASE IF NOT EXISTS astronomical_forum
 
 USE astronomical_forum;
 
--- 1. Users
 CREATE TABLE IF NOT EXISTS users (
   id                  INT UNSIGNED NOT NULL AUTO_INCREMENT,
   username            VARCHAR(64)  NOT NULL,

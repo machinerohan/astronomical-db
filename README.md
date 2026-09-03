@@ -25,12 +25,12 @@ A comprehensive StackOverflow-like forum for discussing and cataloging astronomi
 - `htdocs` folder accessible
 
 ### 2. Clone/Copy Project
-Copy the project into your XAMPP htdocs folder:
+Copy the entire project into your XAMPP `htdocs` folder:
 ```
 c:\xampp\htdocs\astronomical-db\
 ```
 
-### 3. Initialize Database
+### 3. Initialize Databases
 
 From **XAMPP shell** (cmd in the project directory):
 
@@ -41,7 +41,9 @@ mysql -u root < db\schema-forum.sql
 mysql -u root < db\seed.sql
 ```
 
-**Note**: If MySQL has a password, add `-p` and enter it when prompted:
+The SQL files create the two databases used by the application: `astronomical_catalogue` and `astronomical_forum`.
+
+If MySQL has a password, add `-p` and enter it when prompted:
 ```batch
 mysql -u root -p < db\schema.sql
 ```
@@ -92,7 +94,10 @@ mysqladmin --socket=.mysql.sock shutdown
 
 ## Database Schema
 
-The application uses **two databases** within `astronomical_db`:
+The application uses **two separate databases**:
+
+- `astronomical_catalogue` for astronomical objects
+- `astronomical_forum` for users and forum data
 
 ### Catalogue Tables (schema.sql)
 - `objects` - Astronomical objects (stars, galaxies, nebulae, etc.)
@@ -194,7 +199,8 @@ Edit `web/config.php` to change database settings:
 ```php
 const DB_HOST = '127.0.0.1';
 const DB_PORT = '3306';
-const DB_NAME = 'astronomical_db';
+const DB_NAME = 'astronomical_forum';
+const CATALOGUE_DB_NAME = 'astronomical_catalogue';
 const DB_USER = 'root';
 const DB_PASS = '';  // Add password if set
 ```
@@ -235,28 +241,24 @@ const DB_PASS = '';  // Add password if set
 Key helper functions available:
 
 ```php
-// Authentication
-current_user(): ?array          // Get logged-in user
+current_user(): ?array
 require_user(): array           // Require login
 require_admin(): array          // Require admin role
 require_expert(): array         // Require expert+ role
 
-// Forum
-get_categories(): array         // All categories
+get_categories(): array
 get_threads_by_category(int): array
 get_posts_for_thread(int): array
 create_thread(...): int         // Returns thread ID
 create_post(...): int           // Returns post ID
 
-// Proposals
 get_pending_proposals(): array
 create_proposal(...): int       // Returns proposal ID
 approve_proposal(int, int): void
 reject_proposal(int, int, string): void
 
-// Users
-get_user_stats(int): array      // Posts, proposals, approvals
-get_user_history(int): array    // Activity history
+get_user_stats(int): array
+get_user_history(int): array
 ```
 
 ## License

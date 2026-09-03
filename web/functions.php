@@ -91,8 +91,6 @@ function csrf_field(): string
     return '<input type="hidden" name="csrf_token" value="' . e(csrf_token()) . '">';
 }
 
-// Forum helper functions
-
 function require_expert(): array
 {
     $user = require_user();
@@ -291,7 +289,6 @@ function approve_proposal(int $proposalId, int $approverId, ?string $reason = nu
         );
         $statement->execute([$approverId, $proposalId]);
         
-        // Get proposal details
         $statement = $conn->prepare('SELECT type, target_object_id, field, new_value, thread_id, author_id FROM proposals WHERE id = ?');
         $statement->execute([$proposalId]);
         $proposal = $statement->fetch();
@@ -312,7 +309,6 @@ function approve_proposal(int $proposalId, int $approverId, ?string $reason = nu
               }
             $conn->prepare('UPDATE threads SET identified_object_id = ? WHERE id = ? AND type = "identification"')->execute([$objectId, $proposal['thread_id']]);
         } elseif ($proposal['type'] === 'edit_field' && $proposal['target_object_id']) {
-            // Apply edit to object
             $field = $proposal['field'];
             $value = $proposal['new_value'];
             $objectId = $proposal['target_object_id'];
@@ -323,7 +319,6 @@ function approve_proposal(int $proposalId, int $approverId, ?string $reason = nu
             $updateStmt = catalogue_db()->prepare("UPDATE objects SET {$field} = ? WHERE id = ?");
             $updateStmt->execute([$value, $objectId]);
             
-            // Log the edit
             $statement = $conn->prepare(
                 'INSERT INTO object_edits (object_id, proposal_id, field, old_value, new_value, applied_by) VALUES (?, ?, ?, ?, ?, ?)'
             );

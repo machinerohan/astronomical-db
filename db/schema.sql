@@ -1,6 +1,3 @@
--- Astronomical Objects Database — schema skeleton
--- MySQL / MariaDB compatible
-
 CREATE DATABASE IF NOT EXISTS astronomical_catalogue
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;

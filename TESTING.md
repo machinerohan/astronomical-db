@@ -149,13 +149,13 @@
 
 ## Known Limitations (Document)
 
-- [ ] No image upload support yet
 - [ ] No email notifications
 - [ ] No full-text search
 - [ ] No markdown in posts
 - [ ] No dispute resolution UI (database support only)
 - [ ] Single-file index.php (monolithic)
 - [ ] No API layer
+
 
 ## Post-Launch Checklist
 

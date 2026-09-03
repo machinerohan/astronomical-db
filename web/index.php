@@ -10,8 +10,6 @@ $category_slug = $_GET['cat'] ?? null;
 $thread_id = filter_input(INPUT_GET, 'thread', FILTER_VALIDATE_INT);
 $user_id = filter_input(INPUT_GET, 'user', FILTER_VALIDATE_INT);
 
-// === AUTH ACTIONS ===
-
 if ($action === 'register') {
     verify_csrf();
     $username = trim((string) ($_POST['username'] ?? ''));
@@ -77,8 +75,6 @@ if ($action === 'approve' || $action === 'reject') {
     flash('success', $action === 'approve' ? 'Registration approved.' : 'Registration rejected.');
     redirect('admin');
 }
-
-// === FORUM ACTIONS ===
 
 if ($action === 'create_thread') {
     $user = require_user();
@@ -149,10 +145,15 @@ if ($action === 'create_add_proposal') {
         flash('error', 'Name, object type, thread, and opening post are required.');
     } else {
         try {
+            $imageUrl = $object['image_url'];
+            if ($imageUrl !== '' && (!filter_var($imageUrl, FILTER_VALIDATE_URL) || !preg_match('/^https:\/\//i', $imageUrl))) {
+                throw new InvalidArgumentException('Image URLs must use HTTPS.');
+            }
+            $object['image_url'] = $imageUrl;
             create_add_proposal($threadId, $postId, $user['id'], $object);
             flash('success', 'Catalogue proposal submitted for expert review.');
         } catch (Exception $exception) {
-            flash('error', 'Could not submit the proposal.');
+            flash('error', $exception instanceof InvalidArgumentException ? $exception->getMessage() : 'Could not submit the proposal.');
         }
     }
     redirect("thread=$threadId");
@@ -288,8 +289,6 @@ if ($action === 'reject_proposal') {
     redirect('approvals');
 }
 
-// === LOAD DATA ===
-
 $user = current_user();
 $flash = take_flash();
 $categories = get_categories();
@@ -366,15 +365,12 @@ function page_title(string $page, ?string $extra = null): string
     <main class="shell">
         <?php if ($flash): ?><div class="notice <?= e($flash['type']) ?>"><?= e($flash['message']) ?></div><?php endif; ?>
 
-        <!-- REGISTER -->
         <?php if ($page === 'register'): ?>
             <section class="auth-layout"><div class="auth-intro"><p class="eyebrow">Create an account</p><h1>Join the discussion.</h1><p>Register to ask questions, browse the catalogue, and contribute answers.</p><div class="signal-list"><span>01</span>Admin approval required</div><div class="signal-list"><span>02</span>One account per user</div></div><div class="form-panel"><p class="eyebrow">Registration</p><h2>Create your account</h2><form method="post" class="stack"><input type="hidden" name="action" value="register"><?= csrf_field() ?><label>Username<input name="username" autocomplete="username" required minlength="3" maxlength="64"></label><label>Password<input type="password" name="password" autocomplete="new-password" required minlength="8"><small>At least 8 characters.</small></label><label>Confirm password<input type="password" name="password_confirmation" autocomplete="new-password" required minlength="8"></label><button class="primary-button" type="submit">Register <span>→</span></button></form><p class="form-foot">Already registered? <a href="index.php?page=login">Log in</a></p></div></section>
 
-        <!-- LOGIN -->
         <?php elseif ($page === 'login'): ?>
             <section class="auth-layout compact"><div class="auth-intro"><p class="eyebrow">Account access</p><h1>Log in to AstroForum.</h1><p>Sign in to manage your account and take part in the community.</p></div><div class="form-panel"><p class="eyebrow">Log in</p><h2>Account login</h2><form method="post" class="stack"><input type="hidden" name="action" value="login"><?= csrf_field() ?><label>Username<input name="username" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><button class="primary-button" type="submit">Log in <span>→</span></button></form><p class="form-foot">Need an account? <a href="index.php?page=register">Register here</a></p></div></section>
 
-        <!-- DASHBOARD -->
         <?php elseif ($page === 'dashboard'): 
             $member = require_user(); 
             $stats = get_user_stats($member['id']);
@@ -395,23 +391,19 @@ function page_title(string $page, ?string $extra = null): string
                 </div>
             </section>
 
-        <!-- PROFILE -->
         <?php elseif ($page === 'profile' && $profile): ?>
             <section class="page-heading"><p class="eyebrow">Community member</p><h1><?= e($profile['username']) ?></h1><p><?= e(ucfirst($profile['expertise'])) ?> · Joined <?= e(date('M j, Y', strtotime($profile['created_at']))) ?></p></section>
             <?php if ($verification): ?><section class="notice success">Verified by <?= e($verification['verifier']) ?>: <?= e($verification['note']) ?></section><?php endif; ?>
             <section class="profile-panel"><h2>Activity history</h2><?php if (!$history): ?><p class="empty-state">No activity yet.</p><?php else: ?><div class="activity-list"><?php foreach ($history as $item): ?><article class="activity-item"><span class="activity-type"><?= e(ucfirst($item['type'])) ?></span><a href="index.php?page=thread&thread=<?= e((string) $item['thread_id']) ?>"><?= e($item['title']) ?></a><small><?= e(date('M j, Y', strtotime($item['created_at']))) ?></small></article><?php endforeach; ?></div><?php endif; ?></section>
 
-        <!-- CATALOGUE OBJECT -->
         <?php elseif ($page === 'catalogue' && $catalogueObject): ?>
             <section class="page-heading"><p class="eyebrow"><?= e(strtoupper($catalogueObject['object_type'])) ?></p><h1><?= e($catalogueObject['name']) ?></h1><p><?= e($catalogueObject['catalog_id'] ?? 'Catalogue entry') ?> · <?= e($catalogueObject['constellation'] ?? 'Uncharted') ?></p></section>
             <section class="profile-panel"><dl><div><dt>Object type</dt><dd><?= e($catalogueObject['object_type']) ?></dd></div><div><dt>Distance</dt><dd><?= e((string) $catalogueObject['distance_ly']) ?> ly</dd></div><div><dt>Coordinates</dt><dd><?= e((string) $catalogueObject['right_ascension']) ?> / <?= e((string) $catalogueObject['declination']) ?></dd></div></dl></section>
 
-        <!-- DISPUTES -->
         <?php elseif ($page === 'disputes'): ?>
             <section class="page-heading"><p class="eyebrow">Independent review</p><h1>Proposal disputes</h1><p>Review challenges without resolving your own approvals.</p></section>
             <section class="proposals-list"><?php if (!$disputes): ?><p class="empty-state">No pending disputes.</p><?php else: ?><?php foreach ($disputes as $dispute): ?><article class="proposal-card"><h3><?= e($dispute['title']) ?></h3><p><?= e($dispute['reason']) ?></p><small>Raised by <?= e($dispute['username']) ?></small><div class="proposal-actions"><form method="post"><input type="hidden" name="action" value="resolve_dispute"><input type="hidden" name="dispute_id" value="<?= e((string) $dispute['id']) ?>"><?= csrf_field() ?><input type="hidden" name="decision" value="approve"><button class="approve-button" type="submit">Approve revert</button></form><form method="post"><input type="hidden" name="action" value="resolve_dispute"><input type="hidden" name="dispute_id" value="<?= e((string) $dispute['id']) ?>"><?= csrf_field() ?><input type="hidden" name="decision" value="reject"><button class="reject-button" type="submit">Reject dispute</button></form></div></article><?php endforeach; ?><?php endif; ?></section>
 
-        <!-- ADMIN DESK -->
         <?php elseif ($page === 'admin'): 
             $admin = require_admin(); 
             $managedUsers = db()->query('SELECT id, username, expertise, is_restricted FROM users ORDER BY username')->fetchAll();
@@ -430,7 +422,6 @@ function page_title(string $page, ?string $extra = null): string
             </section>
             <section class="profile-panel" style="margin-top: 30px;"><h2>Manage user access</h2><?php foreach ($managedUsers as $managed): ?><form method="post" class="user-row"><input type="hidden" name="action" value="moderate_user"><input type="hidden" name="user_id" value="<?= e((string) $managed['id']) ?>"><?= csrf_field() ?><strong><?= e($managed['username']) ?></strong><select name="expertise"><option value="normal"<?= $managed['expertise'] === 'normal' ? ' selected' : '' ?>>Normal</option><option value="expert"<?= $managed['expertise'] === 'expert' ? ' selected' : '' ?>>Expert</option><option value="verified"<?= $managed['expertise'] === 'verified' ? ' selected' : '' ?>>Verified</option></select><label><input type="checkbox" name="is_restricted" value="1"<?= $managed['is_restricted'] ? ' checked' : '' ?>> Restricted</label><input name="verification_note" placeholder="Verification reason"><button class="approve-button" type="submit">Save access</button></form><?php endforeach; ?></section>
 
-        <!-- FORUM LISTING -->
         <?php elseif ($page === 'forum'):
             if ($category_slug):
                 $category = get_category_by_slug($category_slug);
@@ -472,7 +463,6 @@ function page_title(string $page, ?string $extra = null): string
             <?php endif; ?>
             </section>
         <?php else:
-            // Show all categories
         ?>
             <section class="hero"><div class="hero-copy"><p class="eyebrow">Astronomy questions</p><h1>Ask questions. Share what you know.</h1><p class="hero-text">A place to discuss astronomical objects and keep useful answers in one catalogue.</p>
             <?php if (!$user): ?>
@@ -496,7 +486,6 @@ function page_title(string $page, ?string $extra = null): string
             </section>
         <?php endif; ?>
 
-        <!-- THREAD VIEW -->
         <?php elseif ($page === 'thread' && $thread_id):
             $thread = get_thread_by_id($thread_id);
             if (!$thread):
@@ -519,7 +508,7 @@ function page_title(string $page, ?string $extra = null): string
                             <a href="index.php?page=profile&user=<?= $post['author_id'] ?>" class="post-author"><?= e($post['username']) ?></a>
                             <span class="post-badge"><?= ucfirst($post['expertise']) ?></span>
                             <?php if ($post['author_id'] == $thread['author_id']): ?>
-                                <span class="post-badge op">OP</span>
+                                <span class="post-badge op">Thread Creator</span>
                             <?php endif; ?>
                             <span class="post-date"><?= e(date('M j, Y · g:i a', strtotime($post['created_at']))) ?></span>
                         </div>
@@ -553,7 +542,6 @@ function page_title(string $page, ?string $extra = null): string
 
         <?php endif; ?>
 
-        <!-- APPROVALS DASHBOARD -->
         <?php elseif ($page === 'approvals'): 
             $user = require_expert();
             $proposals = get_pending_proposals(50);
@@ -596,7 +584,6 @@ function page_title(string $page, ?string $extra = null): string
             <?php endif; ?>
             </section>
 
-        <!-- HOME PAGE -->
         <?php else: 
             $objects = catalogue_db()->query('SELECT name, catalog_id, object_type, constellation, distance_ly FROM objects WHERE status = "active" ORDER BY id LIMIT 6')->fetchAll();
         ?>
